@@ -115,6 +115,19 @@ export interface CreateMessageResponse {
   assistantMessage: ChatMessage;
 }
 
+export interface SessionCommandInfo {
+  sessionId: string;
+  agentId: string;
+  agentName?: string;
+  chatMode: string;
+  launchCommand: string;
+  firstTurnArgs?: string[];
+  nextTurnArgs?: string[];
+  cwd: string;
+  machineName: string;
+  options?: Record<string, string>;
+}
+
 export interface MenuActionResult {
   actionId: string;
   label: string;

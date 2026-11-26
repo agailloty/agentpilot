@@ -225,6 +225,7 @@ func TestAPIAuthEnforcedOnAllRoutes(t *testing.T) {
 		{http.MethodGet, "/api/sessions/some-id/messages"},
 		{http.MethodPost, "/api/sessions/some-id/messages"},
 		{http.MethodPost, "/api/sessions/some-id/cancel"},
+		{http.MethodGet, "/api/sessions/some-id/command"},
 		{http.MethodPatch, "/api/sessions/some-id/options"},
 		{http.MethodPost, "/api/sessions/some-id/menu-action"},
 		{http.MethodGet, "/ws/sessions/some-id"},

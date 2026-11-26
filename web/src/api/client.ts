@@ -12,6 +12,7 @@ import type {
   MenuActionResult,
   NotificationConfig,
   Project,
+  SessionCommandInfo,
   SessionMeta,
   SessionQueryParams,
   TokenRecord,
@@ -165,6 +166,12 @@ export class AgentPilotClient {
 
   fetchSessionMessages(sessionId: string): Promise<ChatMessage[]> {
     return this.request<ChatMessage[]>(`/api/sessions/${encodeURIComponent(sessionId)}/messages`);
+  }
+
+  fetchSessionCommand(sessionId: string): Promise<SessionCommandInfo> {
+    return this.request<SessionCommandInfo>(
+      `/api/sessions/${encodeURIComponent(sessionId)}/command`,
+    );
   }
 
   sendChatMessage(sessionId: string, content: string): Promise<CreateMessageResponse> {

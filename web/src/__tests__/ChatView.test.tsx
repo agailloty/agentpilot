@@ -53,6 +53,7 @@ const mockSendChatMessage = vi.fn();
 const mockCancelChatTurn = vi.fn();
 const mockUpdateSessionOptions = vi.fn();
 const mockRunProviderMenuAction = vi.fn();
+const mockFetchSessionCommand = vi.fn();
 const mockCloseSession = vi.fn();
 const mockCreateSession = vi.fn();
 const mockRefreshSessions = vi.fn();
@@ -102,6 +103,7 @@ const mockClient = {
   cancelChatTurn: mockCancelChatTurn,
   updateSessionOptions: mockUpdateSessionOptions,
   runProviderMenuAction: mockRunProviderMenuAction,
+  fetchSessionCommand: mockFetchSessionCommand,
   closeSession: mockCloseSession,
   createSession: mockCreateSession,
 };
@@ -289,8 +291,20 @@ describe('ChatView', () => {
     expect(screen.getByText('exit 0')).toBeInTheDocument();
   });
 
-  it('shows inline / slash command autocomplete and inserts selected command', async () => {
+  it('shows the headless command in the Debug tab for debugging', async () => {
     const session = makeRunningSession();
+    mockFetchSessionCommand.mockResolvedValue({
+      sessionId: session.id,
+      agentId: 'copilot',
+      agentName: 'GitHub Copilot CLI',
+      chatMode: 'headless',
+      launchCommand: 'copilot',
+      firstTurnArgs: ['--headless', '-p', '{prompt}'],
+      nextTurnArgs: ['--headless', '-p', '{prompt}', '--continue'],
+      cwd: '/srv/repos/agentpilot',
+      machineName: 'homelab-01',
+      options: { model: 'claude-sonnet' },
+    });
 
     render(
       <ChatView
@@ -303,14 +317,17 @@ describe('ChatView', () => {
 
     await screen.findByText('Comment puis-je vous aider ?');
 
-    const textarea = screen.getByPlaceholderText(/Message à GitHub Copilot CLI/i);
-    fireEvent.change(textarea, { target: { value: '/exp' } });
+    // Open the Debug tab via the composer chip
+    fireEvent.click(screen.getByRole('button', { name: 'Debug' }));
 
-    const listbox = screen.getByRole('listbox', { name: 'Suggestions de commandes' });
-    expect(listbox).toBeInTheDocument();
+    expect(await screen.findByText('Ligne de commande')).toBeInTheDocument();
+    expect(mockFetchSessionCommand).toHaveBeenCalledWith('sess-42');
+    expect(screen.getAllByText('copilot').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('/srv/repos/agentpilot').length).toBeGreaterThan(0);
 
-    fireEvent.click(screen.getByRole('option', { name: /\/explain/i }));
-    expect(textarea).toHaveValue('/explain ');
+    // Non-default selected options appear as active flags
+    expect(screen.getByText('--model')).toBeInTheDocument();
+    expect(screen.getByText('Claude Sonnet')).toBeInTheDocument();
   });
 
   it('renders closed session footer and relaunches session via Relancer', async () => {

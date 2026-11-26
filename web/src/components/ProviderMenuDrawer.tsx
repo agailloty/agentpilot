@@ -1,18 +1,22 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Check,
   Copy,
   Loader2,
   Play,
-  Search,
   SlidersHorizontal,
-  Terminal,
+  Bug,
   Wrench,
   X,
 } from 'lucide-react';
-import type { AgentManifest, MenuActionResult, SessionMeta } from '../api/types';
+import type {
+  AgentManifest,
+  MenuActionResult,
+  SessionCommandInfo,
+  SessionMeta,
+} from '../api/types';
 
-export type ProviderMenuTab = 'options' | 'commands' | 'inspect';
+export type ProviderMenuTab = 'options' | 'debug' | 'inspect';
 
 export interface ProviderMenuDrawerProps {
   open: boolean;
@@ -21,7 +25,7 @@ export interface ProviderMenuDrawerProps {
   session: SessionMeta;
   onClose: () => void;
   onUpdateOptions: (nextOptions: Record<string, string>) => Promise<void>;
-  onSelectCommand: (commandText: string) => void;
+  onLoadSessionCommand: () => Promise<SessionCommandInfo>;
   onRunInspectAction: (actionId: string) => Promise<MenuActionResult>;
 }
 
@@ -37,17 +41,26 @@ export function ProviderMenuDrawer({
   session,
   onClose,
   onUpdateOptions,
-  onSelectCommand,
+  onLoadSessionCommand,
   onRunInspectAction,
 }: ProviderMenuDrawerProps) {
   const [activeTab, setActiveTab] = useState<ProviderMenuTab>(initialTab);
-  const [commandSearch, setCommandSearch] = useState('');
   const [savingOptionId, setSavingOptionId] = useState<string | null>(null);
   const [optionError, setOptionError] = useState<string | null>(null);
+  const [commandInfo, setCommandInfo] = useState<SessionCommandInfo | null>(null);
+  const [commandLoading, setCommandLoading] = useState(false);
+  const [commandError, setCommandError] = useState<string | null>(null);
+  const [copiedCommand, setCopiedCommand] = useState(false);
   const [runningActionId, setRunningActionId] = useState<string | null>(null);
   const [inspectResult, setInspectResult] = useState<MenuActionResult | null>(null);
   const [inspectError, setInspectError] = useState<string | null>(null);
   const [copiedInspect, setCopiedInspect] = useState(false);
+
+  // Keep the loader callable without retriggering the fetch effect on re-renders.
+  const loadCommandRef = useRef(onLoadSessionCommand);
+  loadCommandRef.current = onLoadSessionCommand;
+  const commandFetchedKeyRef = useRef<string | null>(null);
+  const sessionOptionsKey = JSON.stringify(session.options ?? {});
 
   useEffect(() => {
     if (open) {
@@ -56,6 +69,33 @@ export function ProviderMenuDrawer({
       setInspectError(null);
     }
   }, [open, initialTab]);
+
+  useEffect(() => {
+    if (!open || activeTab !== 'debug') return;
+    const fetchKey = `${session.id}:${sessionOptionsKey}`;
+    if (commandFetchedKeyRef.current === fetchKey) return;
+    commandFetchedKeyRef.current = fetchKey;
+    let cancelled = false;
+    setCommandLoading(true);
+    setCommandError(null);
+    loadCommandRef.current()
+      .then((info) => {
+        if (!cancelled) setCommandInfo(info);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setCommandError(
+            err instanceof Error ? err.message : 'Impossible de charger la commande',
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setCommandLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, activeTab, session.id, sessionOptionsKey]);
 
   useEffect(() => {
     if (!open) return;
@@ -67,19 +107,21 @@ export function ProviderMenuDrawer({
   }, [open, onClose]);
 
   const options = manifest?.providerMenus?.options ?? [];
-  const commands = manifest?.commands ?? [];
   const inspectActions = manifest?.providerMenus?.inspectActions ?? [];
 
-  const filteredCommands = useMemo(() => {
-    const q = commandSearch.trim().toLowerCase();
-    if (!q) return commands;
-    return commands.filter(
-      (cmd) =>
-        cmd.name.toLowerCase().includes(q) ||
-        cmd.description.toLowerCase().includes(q) ||
-        (cmd.args ?? '').toLowerCase().includes(q),
-    );
-  }, [commands, commandSearch]);
+  const activeOptionChips = useMemo(() => {
+    if (!commandInfo) return [];
+    return options
+      .map((opt) => {
+        const val = commandInfo.options?.[opt.id];
+        if (!val || val === 'default' || (opt.defaultValue && val === opt.defaultValue)) {
+          return null;
+        }
+        const choice = opt.choices.find((c) => c.value === val);
+        return { flag: opt.flag, valueLabel: choice?.label ?? val };
+      })
+      .filter((x): x is { flag: string; valueLabel: string } => x !== null);
+  }, [commandInfo, options]);
 
   if (!open) return null;
 
@@ -126,9 +168,9 @@ export function ProviderMenuDrawer({
     }
   }
 
-  const tabs: { id: ProviderMenuTab; label: string; icon: typeof SlidersHorizontal }[] = [
+  const tabs: { id: ProviderMenuTab; label: string; icon: typeof Bug }[] = [
     { id: 'options', label: 'Paramètres', icon: SlidersHorizontal },
-    { id: 'commands', label: 'Commandes', icon: Terminal },
+    { id: 'debug', label: 'Debug', icon: Bug },
     { id: 'inspect', label: 'Menus CLI', icon: Wrench },
   ];
 
@@ -262,54 +304,151 @@ export function ProviderMenuDrawer({
             </div>
           )}
 
-          {activeTab === 'commands' && (
+          {activeTab === 'debug' && (
             <div className="space-y-3">
-              <div className="relative">
-                <Search className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
-                <input
-                  type="text"
-                  value={commandSearch}
-                  onChange={(e) => setCommandSearch(e.target.value)}
-                  placeholder="Rechercher une commande…"
-                  className="w-full rounded-lg border border-zinc-200 bg-white py-2 pr-3 pl-8 text-xs text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
-                />
-              </div>
+              {commandLoading && (
+                <div className="flex items-center gap-2 py-6 text-xs text-zinc-500 dark:text-zinc-400">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span>Chargement de la commande…</span>
+                </div>
+              )}
 
-              {filteredCommands.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-zinc-200 p-6 text-center text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-                  Aucune commande correspondante.
+              {commandError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+                  {commandError}
                 </div>
-              ) : (
-                <div className="space-y-1.5">
-                  {filteredCommands.map((cmd) => (
-                    <button
-                      key={cmd.name}
-                      type="button"
-                      onClick={() => {
-                        const text = cmd.args ? `${cmd.name} ` : cmd.name;
-                        onSelectCommand(text);
-                        if (window.innerWidth < 1280) {
-                          onClose();
+              )}
+
+              {commandInfo && (
+                <>
+                  <p className="text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
+                    Commande envoyée au runner en mode headless.{' '}
+                    <code className="font-mono">{'{prompt}'}</code> est remplacé par votre
+                    message au moment de l&apos;envoi.
+                  </p>
+
+                  <div className="overflow-hidden rounded-xl border border-zinc-800 bg-[#111113] text-zinc-100">
+                    <div className="flex items-center justify-between border-b border-zinc-800 bg-[#18181B] px-3 py-2">
+                      <span className="text-xs font-medium text-zinc-200">Ligne de commande</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void navigator.clipboard
+                            ?.writeText(
+                              [
+                                commandInfo.launchCommand,
+                                ...(commandInfo.nextTurnArgs ?? []),
+                              ].join(' '),
+                            )
+                            .then(() => {
+                              setCopiedCommand(true);
+                              window.setTimeout(() => setCopiedCommand(false), 1800);
+                            })
                         }
-                      }}
-                      className="flex w-full flex-col items-start gap-0.5 rounded-xl border border-zinc-200/90 bg-white p-3 text-left transition hover:border-zinc-300 hover:bg-zinc-50/70 dark:border-zinc-800/90 dark:bg-zinc-900/60 dark:hover:border-zinc-700 dark:hover:bg-zinc-800/60"
-                    >
-                      <div className="flex w-full items-center gap-2">
-                        <span className="font-mono text-xs font-semibold text-indigo-600 dark:text-indigo-400">
-                          {cmd.name}
-                        </span>
-                        {cmd.args && (
-                          <span className="truncate font-mono text-[11px] text-zinc-400 dark:text-zinc-500">
-                            {cmd.args}
-                          </span>
+                        className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium text-zinc-300 transition hover:bg-zinc-800 hover:text-white"
+                      >
+                        {copiedCommand ? (
+                          <>
+                            <Check className="h-3 w-3 text-emerald-400" />
+                            <span className="text-emerald-400">Copié</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3 w-3" />
+                            <span>Copier</span>
+                          </>
                         )}
+                      </button>
+                    </div>
+                    <div className="space-y-2 p-3 font-mono text-[11px] leading-relaxed">
+                      <div className="break-words">
+                        <span className="text-emerald-400">
+                          {commandInfo.launchCommand}
+                        </span>{' '}
+                        {(commandInfo.nextTurnArgs ?? []).map((arg, idx) => (
+                          <span key={`${arg}-${idx}`}>
+                            {arg === '{prompt}' ? (
+                              <span className="rounded bg-amber-500/20 px-1 text-amber-300">
+                                {'{prompt}'}
+                              </span>
+                            ) : (
+                              <span className="text-zinc-100">{arg}</span>
+                            )}{' '}
+                          </span>
+                        ))}
                       </div>
-                      <span className="text-xs text-zinc-600 dark:text-zinc-400">
-                        {cmd.description}
+                      {commandInfo.chatMode === 'headless' &&
+                        (commandInfo.nextTurnArgs?.length ?? 0) >
+                          (commandInfo.firstTurnArgs?.length ?? 0) && (
+                          <div className="border-t border-zinc-800 pt-2 text-zinc-400">
+                            <span className="text-[10px] uppercase tracking-wider">
+                              Premier tour (sans reprise)
+                            </span>
+                            <div className="mt-1 break-words text-zinc-200">
+                              <span className="text-emerald-400">
+                                {commandInfo.launchCommand}
+                              </span>{' '}
+                              {commandInfo.firstTurnArgs?.map((arg, idx) => (
+                                <span key={`${arg}-${idx}`}>
+                                  {arg === '{prompt}' ? (
+                                    <span className="rounded bg-amber-500/20 px-1 text-amber-300">
+                                      {'{prompt}'}
+                                    </span>
+                                  ) : (
+                                    <span>{arg}</span>
+                                  )}{' '}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 rounded-xl border border-zinc-200/90 bg-white p-3 text-xs dark:border-zinc-800/90 dark:bg-zinc-900/60">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-zinc-500 dark:text-zinc-400">Mode</span>
+                      <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                        {commandInfo.chatMode || 'headless'}
                       </span>
-                    </button>
-                  ))}
-                </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-zinc-500 dark:text-zinc-400">Machine</span>
+                      <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                        {commandInfo.machineName}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="shrink-0 text-zinc-500 dark:text-zinc-400">
+                        Répertoire
+                      </span>
+                      <span
+                        className="truncate font-mono text-[11px] text-zinc-800 dark:text-zinc-200"
+                        title={commandInfo.cwd}
+                      >
+                        {commandInfo.cwd}
+                      </span>
+                    </div>
+                    {activeOptionChips.length > 0 && (
+                      <div className="border-t border-zinc-200/70 pt-2 dark:border-zinc-800/70">
+                        <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">
+                          Options actives
+                        </span>
+                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                          {activeOptionChips.map((chip) => (
+                            <span
+                              key={chip.flag}
+                              className="inline-flex items-center gap-1 rounded-full border border-indigo-200/90 bg-indigo-50/70 px-2 py-0.5 text-[11px] font-medium text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/15 dark:text-indigo-300"
+                            >
+                              <span className="font-mono">{chip.flag}</span>
+                              <span>{chip.valueLabel}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
             </div>
           )}

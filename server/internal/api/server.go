@@ -110,6 +110,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux, authn *auth.Authenticator) {
 	mux.Handle("GET /api/sessions/{id}/messages", mobileOnly(http.HandlerFunc(s.handleListSessionMessages)))
 	mux.Handle("POST /api/sessions/{id}/messages", mobileOnly(http.HandlerFunc(s.handleCreateSessionMessage)))
 	mux.Handle("POST /api/sessions/{id}/cancel", mobileOnly(http.HandlerFunc(s.handleCancelSessionTurn)))
+	mux.Handle("GET /api/sessions/{id}/command", mobileOnly(http.HandlerFunc(s.handleGetSessionCommand)))
 	mux.Handle("PATCH /api/sessions/{id}/options", mobileOnly(http.HandlerFunc(s.handleUpdateSessionOptions)))
 	mux.Handle("POST /api/sessions/{id}/menu-action", mobileOnly(http.HandlerFunc(s.handleSessionMenuAction)))
 	mux.Handle("GET /ws/sessions/{id}", mobileOnly(http.HandlerFunc(s.handleSessionWS)))

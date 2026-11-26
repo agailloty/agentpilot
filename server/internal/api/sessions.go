@@ -817,6 +817,74 @@ func (s *Server) handleCancelSessionTurn(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusOK, map[string]bool{"cancelled": true})
 }
 
+type sessionCommandResponse struct {
+	SessionID     string            `json:"sessionId"`
+	AgentID       string            `json:"agentId"`
+	AgentName     string            `json:"agentName,omitempty"`
+	ChatMode      string            `json:"chatMode"`
+	LaunchCommand string            `json:"launchCommand"`
+	FirstTurnArgs []string          `json:"firstTurnArgs,omitempty"`
+	NextTurnArgs  []string          `json:"nextTurnArgs,omitempty"`
+	Cwd           string            `json:"cwd"`
+	MachineName   string            `json:"machineName"`
+	Options       map[string]string `json:"options,omitempty"`
+}
+
+// handleGetSessionCommand exposes the exact CLI command the backend builds for
+// headless chat turns, with a {prompt} placeholder, for mobile-side debugging.
+// Environment variables from the manifest are deliberately omitted (no secrets).
+func (s *Server) handleGetSessionCommand(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimSpace(r.PathValue("id"))
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "session id is required")
+		return
+	}
+
+	sess, err := s.store.GetSession(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "session not found")
+			return
+		}
+		s.logger.Error("get session failed", "session_id", id, "error", err)
+		writeError(w, http.StatusInternalServerError, "failed to load session")
+		return
+	}
+
+	storedManifest, err := s.store.GetManifest(r.Context(), sess.AgentID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "agent not found")
+			return
+		}
+		s.logger.Error("get manifest failed", "agent_id", sess.AgentID, "error", err)
+		writeError(w, http.StatusInternalServerError, "failed to load agent")
+		return
+	}
+	manifest, err := manifests.FromStoreManifest(storedManifest)
+	if err != nil {
+		s.logger.Error("decode manifest failed", "agent_id", sess.AgentID, "error", err)
+		writeError(w, http.StatusInternalServerError, "failed to decode agent manifest")
+		return
+	}
+
+	firstTurnArgs := buildChatTurnArgs(manifest, sess.Cwd, "{prompt}", 0, sess.Options)
+	nextTurnArgs := buildChatTurnArgs(manifest, sess.Cwd, "{prompt}", 1, sess.Options)
+
+	writeJSON(w, http.StatusOK, sessionCommandResponse{
+		SessionID:     sess.ID,
+		AgentID:       sess.AgentID,
+		AgentName:     manifest.Name,
+		ChatMode:      manifest.ChatMode,
+		LaunchCommand: manifest.LaunchCommand,
+		FirstTurnArgs: firstTurnArgs,
+		NextTurnArgs:  nextTurnArgs,
+		Cwd:           sess.Cwd,
+		MachineName:   sess.MachineName,
+		Options:       sess.Options,
+	})
+}
+
 func (s *Server) handleUpdateSessionOptions(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimSpace(r.PathValue("id"))
 	if id == "" {

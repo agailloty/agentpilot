@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   ArrowUp,
   Bot,
+  Bug,
   Check,
   ChevronDown,
   Copy,
@@ -104,7 +105,6 @@ export function ChatView({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerTab, setDrawerTab] = useState<ProviderMenuTab>('options');
   const [isAtBottom, setIsAtBottom] = useState(true);
-  const [slashDismissed, setSlashDismissed] = useState(false);
 
   const feedRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -287,26 +287,11 @@ export function ChatView({
       .filter((x): x is { id: string; label: string; valueLabel: string } => x !== null);
   }, [manifest, sessionState.options]);
 
-  const slashSuggestions = useMemo(() => {
-    if (slashDismissed || !input.startsWith('/') || input.includes('\n')) return [];
-    const commands = manifest?.commands ?? [];
-    const query = input.slice(1).split(/\s+/)[0].toLowerCase();
-    return commands
-      .filter((cmd) => {
-        const cleanName = cmd.name.replace(/^\//, '').toLowerCase();
-        return (
-          cleanName.includes(query) || cmd.description.toLowerCase().includes(query)
-        );
-      })
-      .slice(0, 6);
-  }, [input, manifest, slashDismissed]);
-
   async function sendPrompt(text: string) {
     const trimmed = text.trim();
     if (!client || !trimmed || !isRunning || sending) return;
     setSending(true);
     setError(null);
-    setSlashDismissed(false);
     try {
       const res = await client.sendChatMessage(sessionState.id, trimmed);
       setMessages((prev) =>
@@ -327,11 +312,6 @@ export function ChatView({
   }
 
   function handleTextareaKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === 'Escape' && slashSuggestions.length > 0) {
-      e.preventDefault();
-      setSlashDismissed(true);
-      return;
-    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (!isGenerating && input.trim()) {
@@ -402,10 +382,11 @@ export function ChatView({
     return client.runProviderMenuAction(sessionState.id, actionId);
   }
 
-  function handleSelectCommand(commandText: string) {
-    setInput(commandText);
-    setSlashDismissed(true);
-    setTimeout(() => textareaRef.current?.focus(), 0);
+  async function handleLoadSessionCommand() {
+    if (!client) {
+      throw new Error('Client non authentifié');
+    }
+    return client.fetchSessionCommand(sessionState.id);
   }
 
   async function handleCopyMessage(msg: ChatMessage) {
@@ -755,40 +736,6 @@ export function ChatView({
                 </div>
               )}
 
-              {/* Inline / slash autocomplete popup */}
-              {slashSuggestions.length > 0 && (
-                <div
-                  role="listbox"
-                  aria-label="Suggestions de commandes"
-                  className="mb-2 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-lg dark:border-zinc-800 dark:bg-zinc-900"
-                >
-                  {slashSuggestions.map((cmd) => (
-                    <button
-                      key={cmd.name}
-                      type="button"
-                      role="option"
-                      aria-selected={false}
-                      onClick={() => handleSelectCommand(cmd.args ? `${cmd.name} ` : cmd.name)}
-                      className="flex w-full items-center justify-between gap-3 border-b border-zinc-100 px-3.5 py-2.5 text-left text-xs transition last:border-b-0 hover:bg-zinc-50 dark:border-zinc-800/80 dark:hover:bg-zinc-800/60"
-                    >
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span className="font-mono font-semibold text-indigo-600 dark:text-indigo-400">
-                          {cmd.name}
-                        </span>
-                        {cmd.args && (
-                          <span className="truncate font-mono text-[11px] text-zinc-400">
-                            {cmd.args}
-                          </span>
-                        )}
-                      </div>
-                      <span className="truncate text-[11px] text-zinc-500 dark:text-zinc-400">
-                        {cmd.description}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-
               {/* Elevated Multi-Bar Composer Card */}
               <form
                 onSubmit={handleFormSubmit}
@@ -798,10 +745,7 @@ export function ChatView({
                   ref={textareaRef}
                   rows={1}
                   value={input}
-                  onChange={(e) => {
-                    setInput(e.target.value);
-                    setSlashDismissed(false);
-                  }}
+                  onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleTextareaKeyDown}
                   placeholder={`Message à ${providerName}…`}
                   className="block max-h-44 min-h-[48px] w-full resize-none bg-transparent px-4 pt-3.5 pb-2 text-[15px] leading-relaxed text-zinc-900 outline-none placeholder:text-zinc-400 dark:text-zinc-100 dark:placeholder:text-zinc-500"
@@ -811,13 +755,13 @@ export function ChatView({
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
-                      onClick={() => openDrawer('commands')}
-                      aria-label="Commandes"
-                      title="Commandes fournisseur"
-                      className="inline-flex h-7 items-center gap-1 rounded-lg border border-zinc-200/90 bg-zinc-50 px-2 font-mono text-[11px] font-semibold text-zinc-600 transition hover:border-zinc-300 hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:border-zinc-700"
+                      onClick={() => openDrawer('debug')}
+                      aria-label="Debug"
+                      title="Commande envoyée à l'agent"
+                      className="inline-flex h-7 items-center gap-1 rounded-lg border border-zinc-200/90 bg-zinc-50 px-2 text-[11px] font-medium text-zinc-600 transition hover:border-zinc-300 hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:border-zinc-700"
                     >
-                      <span>/</span>
-                      <span className="hidden font-sans font-medium sm:inline">Commandes</span>
+                      <Bug className="h-3 w-3" />
+                      <span className="hidden font-sans sm:inline">Debug</span>
                     </button>
 
                     <button
@@ -908,7 +852,7 @@ export function ChatView({
         session={sessionState}
         onClose={() => setDrawerOpen(false)}
         onUpdateOptions={handleUpdateOptions}
-        onSelectCommand={handleSelectCommand}
+        onLoadSessionCommand={handleLoadSessionCommand}
         onRunInspectAction={handleRunInspectAction}
       />
     </div>

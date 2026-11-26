@@ -17,6 +17,7 @@ import (
 
 	"github.com/agailloty/agentpilot/server/internal/pty"
 	"github.com/agailloty/agentpilot/server/internal/runner"
+	"github.com/agailloty/agentpilot/server/internal/version"
 )
 
 type runnerConfig struct {
@@ -32,6 +33,11 @@ func main() {
 			fmt.Fprintf(os.Stderr, "agentpilot-runner inspect: %v\n", err)
 			os.Exit(1)
 		}
+		return
+	}
+
+	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
+		fmt.Printf("agentpilot-runner %s\n", version.Version)
 		return
 	}
 

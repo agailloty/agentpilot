@@ -1,0 +1,48 @@
+# GoReleaser configuration for AgentPilot runner binaries.
+# Server ships as a Docker image (deploy/Dockerfile, CI `image` job);
+# GoReleaser publishes the cross-platform runner binaries to GitHub Releases.
+version: 2
+
+project_name: agentpilot
+
+builds:
+  - id: runner
+    main: ./server/cmd/runner
+    binary: agentpilot-runner
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - windows
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w -X github.com/agailloty/agentpilot/server/internal/version.Version={{.Version}}
+
+archives:
+  - id: runner
+    formats: [tar.gz]
+    name_template: >-
+      {{ .ProjectName }}-runner_{{ .Os }}_{{ .Arch }}
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "Merge pull request"

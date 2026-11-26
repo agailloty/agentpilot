@@ -154,7 +154,11 @@ initLoop:
 		drainChunks(&collected, chunkCh)
 	default:
 		if inspectCtx.Err() == nil {
-			_, _ = sess.Write([]byte("/help\r"))
+			// "\r\n" instead of a bare "\r": Linux PTY line discipline in
+			// canonical mode does not translate "\r" (ICRNL unset by go-pty),
+			// so the line would never be delivered to the child; "\n"
+			// terminates it on every platform without changing semantics.
+			_, _ = sess.Write([]byte("/help\r\n"))
 			idleTimer := time.NewTimer(idleWait)
 		collectLoop:
 			for {

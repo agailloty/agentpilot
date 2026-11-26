@@ -25,10 +25,9 @@ func TestInspectHelperProcess(t *testing.T) {
 		reader := bufio.NewReader(os.Stdin)
 		done := make(chan string, 1)
 		go func() {
-			line, _ := reader.ReadString('\r')
-			if line == "" {
-				line, _ = reader.ReadString('\n')
-			}
+			// The PTY line discipline delivers "\r" as "\n" on Linux (ICRNL),
+			// so read the "\n" terminator; a bare "\r" read would block here.
+			line, _ := reader.ReadString('\n')
 			done <- line
 		}()
 		select {

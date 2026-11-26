@@ -1,0 +1,11 @@
+.git
+.github
+ADR
+prompts
+ux
+data
+deploy/.env
+server/bin
+web/node_modules
+web/dist
+web/.vite

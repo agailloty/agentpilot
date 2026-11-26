@@ -1,0 +1,37 @@
+{
+  "$schema": "./schema.json",
+  "agentId": "shell",
+  "name": "Interactive Shell",
+  "launchCommand": "__shell__",
+  "args": [],
+  "chatMode": "shell",
+  "providerMenus": {
+    "options": [],
+    "inspectActions": []
+  },
+  "commands": [
+    {
+      "name": "pwd",
+      "description": "Print current working directory",
+      "sendsRaw": "pwd\n"
+    },
+    {
+      "name": "ls",
+      "description": "List directory contents",
+      "args": "[path]",
+      "sendsRaw": "ls -la "
+    },
+    {
+      "name": "git status",
+      "description": "Show working tree status",
+      "sendsRaw": "git status\n"
+    },
+    {
+      "name": "/clear",
+      "description": "Clear terminal screen",
+      "sendsRaw": "clear\n"
+    }
+  ],
+  "approvalPatterns": [],
+  "env": {}
+}

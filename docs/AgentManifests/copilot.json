@@ -1,0 +1,126 @@
+{
+  "$schema": "./schema.json",
+  "agentId": "copilot",
+  "name": "GitHub Copilot CLI",
+  "launchCommand": "copilot",
+  "commandCandidates": ["copilot"],
+  "args": [],
+  "chatMode": "headless",
+  "headlessArgs": ["-p", "{prompt}", "--allow-all-tools"],
+  "continueArgs": ["--continue"],
+  "providerMenus": {
+    "options": [
+      {
+        "id": "model",
+        "label": "Model",
+        "description": "AI model used by Copilot CLI",
+        "flag": "--model",
+        "defaultValue": "default",
+        "choices": [
+          { "value": "default", "label": "Default" },
+          { "value": "claude-sonnet-4", "label": "Claude Sonnet 4" },
+          { "value": "gpt-5", "label": "GPT-5" },
+          { "value": "o3-mini", "label": "o3-mini" }
+        ]
+      }
+    ],
+    "inspectActions": [
+      {
+        "id": "version",
+        "label": "CLI Version",
+        "description": "Show installed GitHub Copilot CLI version",
+        "args": ["--version"]
+      },
+      {
+        "id": "help",
+        "label": "CLI Help",
+        "description": "Show Copilot CLI flags and usage",
+        "args": ["--help"]
+      }
+    ]
+  },
+  "commands": [
+    {
+      "name": "/help",
+      "description": "Show available Copilot CLI commands and shortcuts",
+      "sendsRaw": "/help\n"
+    },
+    {
+      "name": "/clear",
+      "description": "Clear the current conversation history",
+      "sendsRaw": "/clear\n"
+    },
+    {
+      "name": "/model",
+      "description": "Select or switch the active AI model",
+      "args": "[model]",
+      "sendsRaw": "/model "
+    },
+    {
+      "name": "/compact",
+      "description": "Summarize and compact conversation context",
+      "sendsRaw": "/compact\n"
+    },
+    {
+      "name": "/diff",
+      "description": "Review pending file diffs in the workspace",
+      "sendsRaw": "/diff\n"
+    },
+    {
+      "name": "/agent",
+      "description": "Select or inspect available custom agents",
+      "args": "[name]",
+      "sendsRaw": "/agent "
+    },
+    {
+      "name": "/mcp",
+      "description": "Manage or inspect configured MCP servers",
+      "sendsRaw": "/mcp\n"
+    },
+    {
+      "name": "/cwd",
+      "description": "Show or change the active working directory",
+      "args": "[path]",
+      "sendsRaw": "/cwd "
+    },
+    {
+      "name": "/add-dir",
+      "description": "Allow Copilot to access an additional directory",
+      "args": "<path>",
+      "sendsRaw": "/add-dir "
+    },
+    {
+      "name": "/login",
+      "description": "Authenticate GitHub Copilot CLI",
+      "sendsRaw": "/login\n"
+    },
+    {
+      "name": "/logout",
+      "description": "Sign out of GitHub Copilot CLI",
+      "sendsRaw": "/logout\n"
+    },
+    {
+      "name": "/usage",
+      "description": "Show session token and premium request usage",
+      "sendsRaw": "/usage\n"
+    },
+    {
+      "name": "/feedback",
+      "description": "Submit feedback about Copilot CLI",
+      "sendsRaw": "/feedback\n"
+    },
+    {
+      "name": "/exit",
+      "description": "Exit the Copilot CLI session",
+      "sendsRaw": "/exit\n"
+    }
+  ],
+  "approvalPatterns": [
+    "(?i)(allow|approve|confirm|proceed|run command|apply changes).*\\(y/n\\)",
+    "(?i)\\[y/n\\]",
+    "(?i)do you want to",
+    "(?i)yes, and don't ask again",
+    "(?i)allow.*this tool"
+  ],
+  "env": {}
+}

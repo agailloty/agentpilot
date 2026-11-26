@@ -1,0 +1,119 @@
+{
+  "$schema": "./schema.json",
+  "agentId": "antigravity",
+  "name": "Antigravity CLI",
+  "launchCommand": "agy",
+  "commandCandidates": ["agy"],
+  "args": [],
+  "chatMode": "headless",
+  "headlessArgs": ["-p", "{prompt}"],
+  "continueArgs": ["--continue"],
+  "providerMenus": {
+    "options": [
+      {
+        "id": "model",
+        "label": "Model",
+        "description": "Gemini model used by Antigravity CLI",
+        "flag": "--model",
+        "defaultValue": "default",
+        "choices": [
+          { "value": "default", "label": "Default" },
+          { "value": "gemini-2.5-pro", "label": "Gemini 2.5 Pro" },
+          { "value": "gemini-2.5-flash", "label": "Gemini 2.5 Flash" }
+        ]
+      }
+    ],
+    "inspectActions": [
+      {
+        "id": "version",
+        "label": "CLI Version",
+        "description": "Show installed Antigravity CLI version",
+        "args": ["--version"]
+      },
+      {
+        "id": "help",
+        "label": "CLI Help",
+        "description": "Show Antigravity CLI flags and usage",
+        "args": ["--help"]
+      }
+    ]
+  },
+  "commands": [
+    {
+      "name": "/help",
+      "description": "Show Antigravity CLI help and commands",
+      "sendsRaw": "/help\n"
+    },
+    {
+      "name": "/plan",
+      "description": "Enter step-by-step planning mode before execution",
+      "sendsRaw": "/plan\n"
+    },
+    {
+      "name": "/goal",
+      "description": "Start a long-running autonomous goal",
+      "args": "<goal>",
+      "sendsRaw": "/goal "
+    },
+    {
+      "name": "/boost",
+      "description": "Enable deep thinking and rigorous verification",
+      "sendsRaw": "/boost\n"
+    },
+    {
+      "name": "/compact",
+      "description": "Summarize and compact conversation context",
+      "sendsRaw": "/compact\n"
+    },
+    {
+      "name": "/config",
+      "description": "Open Antigravity configuration settings",
+      "sendsRaw": "/config\n"
+    },
+    {
+      "name": "/learn",
+      "description": "Persist a correction or setup behavior for future tasks",
+      "sendsRaw": "/learn\n"
+    },
+    {
+      "name": "/schedule",
+      "description": "Schedule a recurring or one-time task",
+      "args": "<schedule>",
+      "sendsRaw": "/schedule "
+    },
+    {
+      "name": "/browser",
+      "description": "Run a browser interaction task",
+      "args": "<task>",
+      "sendsRaw": "/browser "
+    },
+    {
+      "name": "/grill-me",
+      "description": "Run an interactive interview to resolve design decisions",
+      "sendsRaw": "/grill-me\n"
+    },
+    {
+      "name": "/teamwork",
+      "description": "Coordinate multiple autonomous agents together",
+      "sendsRaw": "/teamwork\n"
+    },
+    {
+      "name": "/clear",
+      "description": "Clear the current conversation",
+      "sendsRaw": "/clear\n"
+    },
+    {
+      "name": "/exit",
+      "description": "Exit the Antigravity CLI session",
+      "sendsRaw": "/exit\n"
+    }
+  ],
+  "approvalPatterns": [
+    "(?i)(allow|approve|confirm|proceed|run command|apply changes).*\\(y/n\\)",
+    "(?i)\\[y/n\\]",
+    "(?i)do you want to",
+    "(?i)waiting for approval",
+    "(?i)yes, allow"
+  ],
+  "env": {}
+}

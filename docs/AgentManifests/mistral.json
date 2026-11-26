@@ -1,0 +1,149 @@
+{
+  "$schema": "./schema.json",
+  "agentId": "mistral",
+  "name": "Mistral Vibe",
+  "launchCommand": "vibe",
+  "commandCandidates": ["vibe"],
+  "args": [],
+  "chatMode": "headless",
+  "headlessArgs": ["--workdir", "{cwd}", "-p", "{prompt}", "--output", "text", "--auto-approve"],
+  "continueArgs": ["-c"],
+  "providerMenus": {
+    "options": [
+      {
+        "id": "model",
+        "label": "Model",
+        "description": "Mistral model used for headless turns",
+        "flag": "--model",
+        "defaultValue": "default",
+        "choices": [
+          { "value": "default", "label": "Default" },
+          { "value": "devstral-2", "label": "Devstral 2" },
+          { "value": "devstral-small", "label": "Devstral Small" },
+          { "value": "mistral-large", "label": "Mistral Large" }
+        ]
+      },
+      {
+        "id": "thinking",
+        "label": "Thinking",
+        "description": "Reasoning effort level",
+        "flag": "--thinking",
+        "defaultValue": "default",
+        "choices": [
+          { "value": "default", "label": "Default" },
+          { "value": "off", "label": "Off" },
+          { "value": "low", "label": "Low" },
+          { "value": "medium", "label": "Medium" },
+          { "value": "high", "label": "High" },
+          { "value": "max", "label": "Max" }
+        ]
+      },
+      {
+        "id": "approvalPolicy",
+        "label": "Approval Policy",
+        "description": "Tool execution approval mode",
+        "flag": "--approval-policy",
+        "defaultValue": "auto-approve",
+        "choices": [
+          { "value": "auto-approve", "label": "Auto-approve" },
+          { "value": "smart-approve", "label": "Smart approve" },
+          { "value": "accept-edits", "label": "Accept edits" },
+          { "value": "ask", "label": "Ask" }
+        ]
+      },
+      {
+        "id": "agent",
+        "label": "Agent Profile",
+        "description": "Built-in Vibe agent profile",
+        "flag": "--agent",
+        "defaultValue": "default",
+        "choices": [
+          { "value": "default", "label": "Default" },
+          { "value": "lean", "label": "Lean" },
+          { "value": "auto-approve", "label": "Auto-approve" }
+        ]
+      }
+    ],
+    "inspectActions": [
+      {
+        "id": "version",
+        "label": "CLI Version",
+        "description": "Show installed Mistral Vibe version",
+        "args": ["--version"]
+      },
+      {
+        "id": "help",
+        "label": "CLI Help",
+        "description": "Show Vibe CLI flags and usage",
+        "args": ["--help"]
+      },
+      {
+        "id": "config-schema",
+        "label": "Config Schema",
+        "description": "Inspect Vibe configuration schema",
+        "args": ["config", "schema"]
+      },
+      {
+        "id": "mcp",
+        "label": "MCP Servers",
+        "description": "Show Vibe MCP subcommand help",
+        "args": ["mcp", "--help"]
+      }
+    ]
+  },
+  "commands": [
+    {
+      "name": "/help",
+      "description": "Show available Mistral CLI commands and shortcuts",
+      "sendsRaw": "/help\n"
+    },
+    {
+      "name": "/clear",
+      "description": "Clear conversation history",
+      "sendsRaw": "/clear\n"
+    },
+    {
+      "name": "/model",
+      "description": "Select or switch the active Mistral model",
+      "args": "[model]",
+      "sendsRaw": "/model "
+    },
+    {
+      "name": "/compact",
+      "description": "Summarize and compact conversation context",
+      "sendsRaw": "/compact\n"
+    },
+    {
+      "name": "/diff",
+      "description": "Show pending workspace diffs",
+      "sendsRaw": "/diff\n"
+    },
+    {
+      "name": "/config",
+      "description": "View or edit Mistral CLI configuration",
+      "sendsRaw": "/config\n"
+    },
+    {
+      "name": "/status",
+      "description": "Display current session and model status",
+      "sendsRaw": "/status\n"
+    },
+    {
+      "name": "/mcp",
+      "description": "Manage or inspect configured MCP servers",
+      "sendsRaw": "/mcp\n"
+    },
+    {
+      "name": "/exit",
+      "description": "Exit the Mistral CLI session",
+      "sendsRaw": "/exit\n"
+    }
+  ],
+  "approvalPatterns": [
+    "(?i)(allow|approve|confirm|proceed|run command|apply changes).*\\(y/n\\)",
+    "(?i)\\[y/n\\]",
+    "(?i)do you want to",
+    "(?i)approve\\?"
+  ],
+  "env": {}
+}

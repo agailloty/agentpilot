@@ -1,0 +1,45 @@
+# Untracked local framing directories (do not commit)
+/ADR/
+/prompts/
+
+# Binaries and build artifacts
+*.exe
+*.out
+*.test
+server/bin/
+coverage.*
+
+# Local runtime data & SQLite
+*.db
+*.db-shm
+*.db-wal
+*.db*
+data/
+sessions/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Go
+/server/dist/
+
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+.idea/
+.vscode/
+app/.dart_tool/
+app/build/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+
+# OS
+.DS_Store
+Thumbs.db
+ux/

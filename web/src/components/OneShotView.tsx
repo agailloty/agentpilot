@@ -110,9 +110,9 @@ export function OneShotView({ initialProjectId }: OneShotViewProps) {
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
-          Commande ponctuelle (One-Shot)
+          One-Shot
         </h1>
-        <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+        <p className="mt-0.5 hidden text-xs text-zinc-500 sm:block dark:text-zinc-400">
           Exécutez une commande synchrone dans le dossier d&apos;un projet distant.
         </p>
       </div>
@@ -168,8 +168,14 @@ export function OneShotView({ initialProjectId }: OneShotViewProps) {
         </div>
 
         {selectedProject && (
-          <div className="truncate font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
-            cwd: {selectedProject.path}
+          <div
+            title={selectedProject.path}
+            className="truncate font-mono text-[11px] text-zinc-500 dark:text-zinc-400"
+          >
+            <span className="sm:hidden">
+              <Terminal className="mr-1 inline h-3 w-3 -translate-y-px" />
+            </span>
+            {selectedProject.path}
           </div>
         )}
 

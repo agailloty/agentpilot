@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { FolderOpen, GitBranch, Loader2, X } from 'lucide-react';
+import { ChevronDown, FolderOpen, GitBranch, Loader2, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import type { Project } from '../api/types';
 import { DirectoryBrowser } from './DirectoryBrowser';
@@ -34,6 +34,7 @@ export function CreateProjectModal({
   const [browserPath, setBrowserPath] = useState('');
   const [parentInput, setParentInput] = useState('');
   const [reloadTrigger, setReloadTrigger] = useState(0);
+  const [browserOpen, setBrowserOpen] = useState(false);
   const [gitInit, setGitInit] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -133,9 +134,6 @@ export function CreateProjectModal({
             >
               Nouveau projet
             </h2>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              Crée un dossier distant sur le runner cible et l&apos;enregistre dans AgentPilot.
-            </p>
           </div>
           <button
             type="button"
@@ -189,67 +187,74 @@ export function CreateProjectModal({
           </div>
 
           <div>
-            <div className="mb-1.5 flex items-center justify-between">
-              <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                Explorateur distant
-              </span>
-              {selectedMachine && (
-                <span className="font-mono text-[11px] text-zinc-400">
-                  {selectedMachine.os || 'os inconnu'}
-                </span>
-              )}
-            </div>
-            <DirectoryBrowser
-              client={client}
-              machine={selectedMachine}
-              currentPath={browserPath}
-              onSelectPath={handleSelectBrowserPath}
-              reloadTrigger={reloadTrigger}
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="proj-parent"
-              className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300"
+            <button
+              type="button"
+              onClick={() => setBrowserOpen((v) => !v)}
+              aria-expanded={browserOpen}
+              className="flex w-full items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-left transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:bg-zinc-900"
             >
-              Dossier parent
-            </label>
-            <div className="flex gap-2">
-              <input
-                id="proj-parent"
-                type="text"
-                value={parentInput}
-                onChange={(e) => setParentInput(e.target.value)}
-                placeholder="/home/user/repos ou C:\Users\user\repos"
-                className="min-w-0 flex-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 font-mono text-xs text-zinc-900 outline-none focus:border-indigo-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100"
-              />
-              <button
-                type="button"
-                onClick={handleOpenManualPath}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900"
-              >
-                <FolderOpen className="h-3.5 w-3.5" />
-                <span>Ouvrir</span>
-              </button>
-            </div>
+              <span className="flex min-w-0 items-center gap-2">
+                <FolderOpen className="h-4 w-4 shrink-0 text-indigo-500 dark:text-indigo-400" />
+                <span className="min-w-0">
+                  <span className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                    Dossier parent
+                  </span>
+                  <span className="block truncate font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
+                    {parentInput || 'Aucun chemin sélectionné'}
+                  </span>
+                </span>
+              </span>
+              <span className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400">
+                <span className="hidden sm:inline">Parcourir</span>
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform ${browserOpen ? 'rotate-180' : ''}`}
+                />
+              </span>
+            </button>
+            {browserOpen && (
+              <div className="mt-2 space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    id="proj-parent"
+                    type="text"
+                    value={parentInput}
+                    onChange={(e) => setParentInput(e.target.value)}
+                    placeholder="/home/user/repos ou C:\Users\user\repos"
+                    className="min-w-0 flex-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 font-mono text-xs text-zinc-900 outline-none focus:border-indigo-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100"
+                  />
+                  <button
+                    type="button"
+                    aria-label="Ouvrir ce chemin"
+                    onClick={handleOpenManualPath}
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                  >
+                    <FolderOpen className="h-4 w-4" />
+                  </button>
+                </div>
+                <DirectoryBrowser
+                  client={client}
+                  machine={selectedMachine}
+                  currentPath={browserPath}
+                  onSelectPath={handleSelectBrowserPath}
+                  reloadTrigger={reloadTrigger}
+                />
+              </div>
+            )}
           </div>
 
           {previewPath && (
-            <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950">
-              <div className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">
-                Chemin final
-              </div>
-              <div className="mt-0.5 break-all font-mono text-xs text-zinc-800 dark:text-zinc-200">
+            <div className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950">
+              <FolderOpen className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+              <span className="truncate font-mono text-xs text-zinc-800 dark:text-zinc-200" title={previewPath}>
                 {previewPath}
-              </div>
+              </span>
             </div>
           )}
 
           <label className="flex cursor-pointer items-center justify-between rounded-lg border border-zinc-200 px-3 py-2.5 dark:border-zinc-800">
             <span className="flex items-center gap-2 text-xs font-medium text-zinc-700 dark:text-zinc-300">
               <GitBranch className="h-3.5 w-3.5 text-zinc-400" />
-              <span>Initialiser un dépôt Git (git init)</span>
+              <span>Dépôt Git</span>
             </span>
             <input
               type="checkbox"

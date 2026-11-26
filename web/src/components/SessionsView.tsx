@@ -93,21 +93,17 @@ export function SessionsView({ onOpenSession, onNewSession }: SessionsViewProps)
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
-            Sessions
-          </h1>
-          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-            Reprenez vos conversations actives ou consultez l&apos;historique.
-          </p>
-        </div>
+        <h1 className="text-xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
+          Sessions
+        </h1>
         <button
           type="button"
           onClick={onNewSession}
-          className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg bg-zinc-900 px-3.5 py-2 text-xs font-medium text-white shadow-xs transition hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-200"
+          aria-label="Nouvelle session"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-zinc-900 text-white shadow-xs transition hover:bg-zinc-800 sm:h-auto sm:w-auto sm:rounded-lg sm:px-3.5 sm:py-2 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-200"
         >
-          <Plus className="h-3.5 w-3.5" />
-          <span>Nouvelle session</span>
+          <Plus className="h-4 w-4" />
+          <span className="hidden text-xs font-medium sm:inline">Nouvelle session</span>
         </button>
       </div>
 
@@ -195,11 +191,11 @@ export function SessionsView({ onOpenSession, onNewSession }: SessionsViewProps)
                           <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                             {s.agentId}
                           </span>
-                          <span className="font-mono text-[11px] text-zinc-400">
+                          <span className="hidden font-mono text-[11px] text-zinc-400 sm:inline">
                             {s.machineName}
                           </span>
                         </div>
-                        <p className="mt-1 truncate font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
+                        <p className="mt-1 hidden truncate font-mono text-[11px] text-zinc-500 sm:block dark:text-zinc-400">
                           {s.cwd}
                         </p>
                       </div>

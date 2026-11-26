@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { ChevronRight, FolderKanban, MessageSquare, Plus } from 'lucide-react';
+import { ChevronRight, FolderKanban, Info, MessageSquare, Plus } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { ProjectInfoSheet } from './ProjectInfoSheet';
 import type { Project, SessionMeta } from '../api/types';
 
 interface ProjectsViewProps {
@@ -16,6 +17,7 @@ export function ProjectsView({
 }: ProjectsViewProps) {
   const { machines, projects, sessions, loading, error } = useApp();
   const [machineFilter, setMachineFilter] = useState<string>('all');
+  const [infoProject, setInfoProject] = useState<Project | null>(null);
 
   const machineMap = useMemo(
     () => new Map(machines.map((m) => [m.name, m])),
@@ -48,23 +50,19 @@ export function ProjectsView({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
-            Projets
-          </h1>
-          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-            Gérez vos dépôts distants et accédez aux sessions actives.
-          </p>
-        </div>
+        <h1 className="text-xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
+          Projets
+        </h1>
         <button
           type="button"
           onClick={() =>
             onOpenCreateProject(machineFilter === 'all' ? undefined : machineFilter)
           }
-          className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg bg-zinc-900 px-3.5 py-2 text-xs font-medium text-white shadow-xs transition hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-200"
+          aria-label="Nouveau projet"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-zinc-900 text-white shadow-xs transition hover:bg-zinc-800 sm:h-auto sm:w-auto sm:rounded-lg sm:px-3.5 sm:py-2 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-200"
         >
-          <Plus className="h-3.5 w-3.5" />
-          <span>Nouveau projet</span>
+          <Plus className="h-4 w-4" />
+          <span className="hidden text-xs font-medium sm:inline">Nouveau projet</span>
         </button>
       </div>
 
@@ -147,7 +145,11 @@ export function ProjectsView({
                       </span>
                     </div>
                     <p className="mt-1 truncate font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
-                      {s.machineName} · {s.waitingApproval ? 'Approbation requise' : 'Actif'}
+                      <span className="whitespace-nowrap">{s.machineName}</span>
+                      {' · '}
+                      <span className="whitespace-nowrap">
+                        {s.waitingApproval ? 'Approbation requise' : 'Actif'}
+                      </span>
                     </p>
                   </div>
                   <MessageSquare className="h-4 w-4 shrink-0 text-zinc-400" />
@@ -191,42 +193,66 @@ export function ProjectsView({
               ).length;
 
               return (
-                <button
+                <div
                   key={project.id}
-                  type="button"
-                  onClick={() => onSelectProject(project)}
-                  className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition hover:bg-zinc-50 dark:hover:bg-zinc-900"
+                  className="flex w-full items-center justify-between gap-1 transition hover:bg-zinc-50 dark:hover:bg-zinc-900"
                 >
-                  <div className="min-w-0 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => onSelectProject(project)}
+                    className="min-w-0 flex-1 px-4 py-3.5 text-left"
+                  >
                     <div className="flex items-center gap-2">
                       <span className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
                         {project.name}
                       </span>
-                      <span className="inline-flex items-center gap-1 rounded-full border border-zinc-200 px-2 py-0.5 text-[11px] text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
-                        <span
-                          className={`h-1.5 w-1.5 rounded-full ${
-                            online ? 'bg-emerald-500' : 'bg-zinc-400'
-                          }`}
-                        />
+                    </div>
+                    <div className="mt-1 flex items-center gap-1.5">
+                      <span
+                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                          online ? 'bg-emerald-500' : 'bg-zinc-400'
+                        }`}
+                        aria-hidden
+                      />
+                      <span className="whitespace-nowrap text-[11px] text-zinc-500 dark:text-zinc-400">
                         {project.machineName}
                       </span>
                       {activeCount > 0 && (
-                        <span className="rounded-full bg-indigo-50 px-2 py-0.5 font-mono text-[10px] font-medium text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300">
+                        <span className="whitespace-nowrap rounded-full bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300">
                           {activeCount} actif{activeCount > 1 ? 's' : ''}
                         </span>
                       )}
                     </div>
-                    <p className="mt-1 truncate font-mono text-xs text-zinc-500 dark:text-zinc-400">
-                      {project.path}
-                    </p>
-                  </div>
-                  <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" />
-                </button>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInfoProject(project)}
+                    aria-label={`Informations sur ${project.name}`}
+                    title="Informations du dépôt"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                  >
+                    <Info className="h-4 w-4" />
+                  </button>
+                  <ChevronRight className="mr-3 h-4 w-4 shrink-0 text-zinc-400 sm:mr-4" />
+                </div>
               );
             })}
           </div>
         )}
       </section>
+
+      {infoProject && (
+        <ProjectInfoSheet
+          project={infoProject}
+          machineOnline={machineMap.get(infoProject.machineName)?.online ?? false}
+          activeSessions={
+            sessions.filter((s) => s.projectId === infoProject.id && s.status === 'running')
+              .length
+          }
+          totalSessions={sessions.filter((s) => s.projectId === infoProject.id).length}
+          onClose={() => setInfoProject(null)}
+        />
+      )}
     </div>
   );
 }

@@ -94,7 +94,10 @@ export function ProjectDetailView({
                 {project.machineName} ({machine?.online ? 'en ligne' : 'hors ligne'})
               </span>
             </div>
-            <p className="mt-2 break-all font-mono text-xs text-zinc-500 dark:text-zinc-400">
+            <p
+              title={project.path}
+              className="mt-2 hidden break-all font-mono text-xs text-zinc-500 sm:block dark:text-zinc-400"
+            >
               {project.path}
             </p>
           </div>
@@ -103,18 +106,22 @@ export function ProjectDetailView({
             <button
               type="button"
               onClick={() => onNewSession(project.id)}
-              className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-xs font-medium text-white transition hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400"
+              aria-label="Nouvelle session"
+              title="Nouvelle session"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-indigo-600 text-white transition hover:bg-indigo-700 sm:h-auto sm:w-auto sm:rounded-lg sm:px-3.5 sm:py-2 dark:bg-indigo-500 dark:hover:bg-indigo-400"
             >
-              <Plus className="h-3.5 w-3.5" />
-              <span>Nouvelle session</span>
+              <Plus className="h-4 w-4" />
+              <span className="hidden text-xs font-medium sm:inline">Nouvelle session</span>
             </button>
             <button
               type="button"
               onClick={() => onOpenOneShot(project.id)}
-              className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900"
+              aria-label="Commande ponctuelle"
+              title="Commande ponctuelle"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 transition hover:bg-zinc-50 sm:h-auto sm:w-auto sm:rounded-lg sm:px-3.5 sm:py-2 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900"
             >
-              <Terminal className="h-3.5 w-3.5" />
-              <span>Commande ponctuelle</span>
+              <Terminal className="h-4 w-4" />
+              <span className="hidden text-xs font-medium sm:inline">Commande ponctuelle</span>
             </button>
             <button
               type="button"
@@ -123,10 +130,12 @@ export function ProjectDetailView({
                 setDeleteError(null);
                 setShowDeleteConfirm((v) => !v);
               }}
-              className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50 dark:border-red-900/50 dark:bg-zinc-950 dark:text-red-400 dark:hover:bg-red-950/30"
+              aria-label="Supprimer"
+              title="Supprimer"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-red-200 bg-white text-red-600 transition hover:bg-red-50 sm:h-auto sm:w-auto sm:rounded-lg sm:px-3 sm:py-2 dark:border-red-900/50 dark:bg-zinc-950 dark:text-red-400 dark:hover:bg-red-950/30"
             >
-              <Trash2 className="h-3.5 w-3.5" />
-              <span>Supprimer</span>
+              <Trash2 className="h-4 w-4" />
+              <span className="hidden text-xs font-medium sm:inline">Supprimer</span>
             </button>
           </div>
         </div>
@@ -177,7 +186,7 @@ export function ProjectDetailView({
       <section className="space-y-2.5">
         <div className="flex items-center justify-between">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-            Sessions du projet
+            Sessions
           </h2>
           <span className="font-mono text-xs text-zinc-400">{projectSessions.length}</span>
         </div>
@@ -210,12 +219,9 @@ export function ProjectDetailView({
                       {s.agentId}
                     </span>
                     <span className="font-mono text-[11px] text-zinc-400">
-                      {s.status === 'running' ? 'en cours' : 'terminée'}
+                      {new Date(s.createdAt).toLocaleString('fr-FR')}
                     </span>
                   </div>
-                  <p className="mt-0.5 font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
-                    {new Date(s.createdAt).toLocaleString('fr-FR')}
-                  </p>
                 </div>
                 <MessageSquare className="h-4 w-4 shrink-0 text-zinc-400" />
               </button>

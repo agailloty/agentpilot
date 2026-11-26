@@ -1,0 +1,26 @@
+services:
+  agentpilot-server:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: agentpilot-server
+    restart: unless-stopped
+    # Security rail: never publish 0.0.0.0:8080:8080.
+    # Bind only to loopback (default) or a specific LAN/Tailscale IP via AGENTPILOT_BIND_IP.
+    ports:
+      - "${AGENTPILOT_BIND_IP:-127.0.0.1}:${AGENTPILOT_PORT:-8080}:8080"
+    volumes:
+      - agentpilot_data:/data
+    environment:
+      # Container-internal listen address; host exposure is controlled by `ports` above.
+      AGENTPILOT_LISTEN_ADDR: "0.0.0.0:8080"
+      AGENTPILOT_DATA_DIR: "/data"
+      AGENTPILOT_MANIFESTS_DIR: "/app/manifests"
+      AGENTPILOT_WEB_DIR: "/app/web"
+      AGENTPILOT_TOKENS: "${AGENTPILOT_TOKENS:?Set AGENTPILOT_TOKENS in .env}"
+      AGENTPILOT_NTFY_URL: "${AGENTPILOT_NTFY_URL:-}"
+      AGENTPILOT_NTFY_TOPIC: "${AGENTPILOT_NTFY_TOPIC:-}"
+      AGENTPILOT_APPROVAL_IDLE_MS: "${AGENTPILOT_APPROVAL_IDLE_MS:-1500}"
+
+volumes:
+  agentpilot_data:

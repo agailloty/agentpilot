@@ -1,0 +1,10 @@
+{
+  "name": "AgentPilot",
+  "short_name": "AgentPilot",
+  "description": "Piloter vos agents CLI sur votre homelab via LAN ou Tailscale",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090B",
+  "theme_color": "#4F46E5",
+  "icons": []
+}

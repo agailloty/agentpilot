@@ -55,6 +55,14 @@ Découpage en jalons. Chaque item est dimensionné pour une PR autonome testable
 - [x] M5.3 Recherche dans l'historique de sessions.
 - [x] M5.4 Rotation des tokens depuis l'UI (UI admin minimaliste ou endpoint scripté).
 
+## Jalon M6 : Fournisseurs à jour, synchro auto des modèles, release v0.2.0
+
+- [x] M6.1 Mécanisme `modelSync` (schéma manifeste + parsers `internal/modelsync` + message `models-sync` + endpoint `POST /api/agents/{id}/models/refresh` + sous-commande `agentpilot-runner models --write` + `scripts/sync-agent-models.sh`). ADR-0006.
+- [x] M6.2 Manifeste `antigravity.json` corrigé : modèles réels du CLI `agy` (Gemini 4 Neon/Carbon/Argon/Hydrogen, Gemini 3.x, Orchestrator), vraies slash commands, option `--effort`, synchro via `agy models`.
+- [x] M6.3 Nouveaux fournisseurs `claude.json` (Claude Code) et `codex.json` (Codex CLI, dont `continueHeadlessArgs` pour `codex exec resume --last`) ; `copilot.json` et `mistral.json` rafraîchis (modèles courants + `modelSync`).
+- [x] M6.4 UI web : bouton de synchronisation des modèles dans le panneau fournisseur.
+- [x] M6.5 Release v0.2.0 (tag `v0.2.0`, release GoReleaser + image Docker en CI).
+
 ## Engagements transverses
 
 - Chaque PR : petits commits, tests idiomatiques au style du projet, mise à jour de la doc concernée.

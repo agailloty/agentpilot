@@ -13,14 +13,18 @@
       {
         "id": "model",
         "label": "Model",
-        "description": "Mistral model used for headless turns",
+        "description": "Mistral model alias or ID used for headless turns (see /model in Vibe)",
         "flag": "--model",
         "defaultValue": "default",
         "choices": [
           { "value": "default", "label": "Default" },
           { "value": "devstral-2", "label": "Devstral 2" },
-          { "value": "devstral-small", "label": "Devstral Small" },
-          { "value": "mistral-large", "label": "Mistral Large" }
+          { "value": "devstral-small-2", "label": "Devstral Small 2" },
+          { "value": "mistral-large-latest", "label": "Mistral Large (latest, Large 4)" },
+          { "value": "mistral-large-4-0", "label": "Mistral Large 4.0" },
+          { "value": "mistral-medium-latest", "label": "Mistral Medium (latest, 3.5)" },
+          { "value": "mistral-medium-3-5", "label": "Mistral Medium 3.5" },
+          { "value": "mistral-small-latest", "label": "Mistral Small (latest)" }
         ]
       },
       {
@@ -90,6 +94,15 @@
         "args": ["mcp", "--help"]
       }
     ]
+  },
+  "modelSync": {
+    "optionId": "model",
+    "args": ["--help"],
+    "send": "/model\n",
+    "parser": "help-flag",
+    "sendParser": "columns",
+    "flag": "--model",
+    "timeoutSec": 20
   },
   "commands": [
     {

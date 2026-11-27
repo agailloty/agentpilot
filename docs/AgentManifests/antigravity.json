@@ -1,25 +1,168 @@
 {
-  "$schema": "./schema.json",
   "agentId": "antigravity",
   "name": "Antigravity CLI",
   "launchCommand": "agy",
-  "commandCandidates": ["agy"],
-  "args": [],
+  "commandCandidates": [
+    "agy"
+  ],
   "chatMode": "headless",
-  "headlessArgs": ["-p", "{prompt}"],
-  "continueArgs": ["--continue"],
+  "headlessArgs": [
+    "-p",
+    "{prompt}"
+  ],
+  "continueArgs": [
+    "--continue"
+  ],
   "providerMenus": {
     "options": [
       {
         "id": "model",
         "label": "Model",
-        "description": "Gemini model used by Antigravity CLI",
+        "description": "Model slug used by Antigravity CLI (see `agy models`)",
         "flag": "--model",
         "defaultValue": "default",
         "choices": [
-          { "value": "default", "label": "Default" },
-          { "value": "gemini-2.5-pro", "label": "Gemini 2.5 Pro" },
-          { "value": "gemini-2.5-flash", "label": "Gemini 2.5 Flash" }
+          {
+            "value": "default",
+            "label": "Default"
+          },
+          {
+            "value": "gemini-4-neon-high",
+            "label": "Gemini 4 Neon (High)"
+          },
+          {
+            "value": "gemini-4-neon-xhigh",
+            "label": "Gemini 4 Neon (XHigh)"
+          },
+          {
+            "value": "gemini-4-neon-medium",
+            "label": "Gemini 4 Neon (Medium)"
+          },
+          {
+            "value": "gemini-4-neon-low",
+            "label": "Gemini 4 Neon (Low)"
+          },
+          {
+            "value": "gemini-4-carbon-medium",
+            "label": "Gemini 4 Carbon (Medium)"
+          },
+          {
+            "value": "gemini-4-carbon-high",
+            "label": "Gemini 4 Carbon (High)"
+          },
+          {
+            "value": "gemini-4-carbon-low",
+            "label": "Gemini 4 Carbon (Low)"
+          },
+          {
+            "value": "gemini-4-argon-medium",
+            "label": "Gemini 4 Argon (Medium)"
+          },
+          {
+            "value": "gemini-4-argon-high",
+            "label": "Gemini 4 Argon (High)"
+          },
+          {
+            "value": "gemini-4-argon-low",
+            "label": "Gemini 4 Argon (Low)"
+          },
+          {
+            "value": "gemini-4-hydrogen-high",
+            "label": "Gemini 4 Hydrogen (High)"
+          },
+          {
+            "value": "gemini-4-hydrogen-xhigh",
+            "label": "Gemini 4 Hydrogen (XHigh)"
+          },
+          {
+            "value": "gemini-4-hydrogen-medium",
+            "label": "Gemini 4 Hydrogen (Medium)"
+          },
+          {
+            "value": "gemini-4-hydrogen-low",
+            "label": "Gemini 4 Hydrogen (Low)"
+          },
+          {
+            "value": "gemini-pro-orchestrator-neon",
+            "label": "Orchestrator (Neon)"
+          },
+          {
+            "value": "gemini-pro-orchestrator",
+            "label": "Orchestrator (Carbon)"
+          },
+          {
+            "value": "gemini-pro-orchestrator-argon",
+            "label": "Orchestrator (Argon)"
+          },
+          {
+            "value": "gemini-3.8-flash-high",
+            "label": "Gemini 3.8 Flash (High)"
+          },
+          {
+            "value": "gemini-3.8-flash-medium",
+            "label": "Gemini 3.8 Flash (Medium)"
+          },
+          {
+            "value": "gemini-3.8-flash-low",
+            "label": "Gemini 3.8 Flash (Low)"
+          },
+          {
+            "value": "claude-opus-5-5-low",
+            "label": "Claude Opus 5.5 (Low)"
+          },
+          {
+            "value": "claude-opus-5-5-medium",
+            "label": "Claude Opus 5.5 (Medium)"
+          },
+          {
+            "value": "claude-opus-5-5-high",
+            "label": "Claude Opus 5.5 (High)"
+          },
+          {
+            "value": "claude-sonnet-5-5-low",
+            "label": "Claude Sonnet 5.5 (Low)"
+          },
+          {
+            "value": "claude-sonnet-5-5-medium",
+            "label": "Claude Sonnet 5.5 (Medium)"
+          },
+          {
+            "value": "claude-sonnet-5-5-high",
+            "label": "Claude Sonnet 5.5 (High)"
+          },
+          {
+            "value": "gpt-oss-120b-medium",
+            "label": "GPT-OSS 120B (Medium)"
+          }
+        ]
+      },
+      {
+        "id": "effort",
+        "label": "Effort",
+        "description": "Reasoning effort level (not adjustable on Orchestrator)",
+        "flag": "--effort",
+        "defaultValue": "default",
+        "choices": [
+          {
+            "value": "default",
+            "label": "Default"
+          },
+          {
+            "value": "low",
+            "label": "Low"
+          },
+          {
+            "value": "medium",
+            "label": "Medium"
+          },
+          {
+            "value": "high",
+            "label": "High"
+          },
+          {
+            "value": "extra",
+            "label": "Extra"
+          }
         ]
       }
     ],
@@ -28,15 +171,35 @@
         "id": "version",
         "label": "CLI Version",
         "description": "Show installed Antigravity CLI version",
-        "args": ["--version"]
+        "args": [
+          "--version"
+        ]
+      },
+      {
+        "id": "models",
+        "label": "Models",
+        "description": "List every model identifier available to this account",
+        "args": [
+          "models"
+        ]
       },
       {
         "id": "help",
         "label": "CLI Help",
         "description": "Show Antigravity CLI flags and usage",
-        "args": ["--help"]
+        "args": [
+          "--help"
+        ]
       }
     ]
+  },
+  "modelSync": {
+    "optionId": "model",
+    "args": [
+      "models"
+    ],
+    "parser": "columns",
+    "timeoutSec": 20
   },
   "commands": [
     {
@@ -45,66 +208,139 @@
       "sendsRaw": "/help\n"
     },
     {
-      "name": "/plan",
-      "description": "Enter step-by-step planning mode before execution",
-      "sendsRaw": "/plan\n"
+      "name": "/model",
+      "description": "Open the model picker",
+      "args": "[model]",
+      "sendsRaw": "/model "
     },
     {
-      "name": "/goal",
-      "description": "Start a long-running autonomous goal",
-      "args": "<goal>",
-      "sendsRaw": "/goal "
-    },
-    {
-      "name": "/boost",
-      "description": "Enable deep thinking and rigorous verification",
-      "sendsRaw": "/boost\n"
+      "name": "/effort",
+      "description": "Set the reasoning effort level",
+      "args": "[level]",
+      "sendsRaw": "/effort "
     },
     {
       "name": "/compact",
-      "description": "Summarize and compact conversation context",
-      "sendsRaw": "/compact\n"
-    },
-    {
-      "name": "/config",
-      "description": "Open Antigravity configuration settings",
-      "sendsRaw": "/config\n"
-    },
-    {
-      "name": "/learn",
-      "description": "Persist a correction or setup behavior for future tasks",
-      "sendsRaw": "/learn\n"
-    },
-    {
-      "name": "/schedule",
-      "description": "Schedule a recurring or one-time task",
-      "args": "<schedule>",
-      "sendsRaw": "/schedule "
-    },
-    {
-      "name": "/browser",
-      "description": "Run a browser interaction task",
-      "args": "<task>",
-      "sendsRaw": "/browser "
-    },
-    {
-      "name": "/grill-me",
-      "description": "Run an interactive interview to resolve design decisions",
-      "sendsRaw": "/grill-me\n"
-    },
-    {
-      "name": "/teamwork",
-      "description": "Coordinate multiple autonomous agents together",
-      "sendsRaw": "/teamwork\n"
+      "description": "Summarize the conversation into a compaction checkpoint",
+      "args": "[message]",
+      "sendsRaw": "/compact "
     },
     {
       "name": "/clear",
-      "description": "Clear the current conversation",
+      "description": "Clear the terminal and reset the conversation (alias /new)",
       "sendsRaw": "/clear\n"
     },
     {
+      "name": "/config",
+      "description": "Open the settings editor overlay (alias /settings)",
+      "sendsRaw": "/config\n"
+    },
+    {
+      "name": "/resume",
+      "description": "List and resume previous conversation logs",
+      "sendsRaw": "/resume\n"
+    },
+    {
+      "name": "/fork",
+      "description": "Branch the conversation into a new parallel session (alias /branch)",
+      "sendsRaw": "/fork\n"
+    },
+    {
+      "name": "/rewind",
+      "description": "Roll back to an earlier point (alias /undo)",
+      "sendsRaw": "/rewind\n"
+    },
+    {
+      "name": "/permissions",
+      "description": "Manage permission and allow rules",
+      "sendsRaw": "/permissions\n"
+    },
+    {
+      "name": "/add-dir",
+      "description": "Add a directory path to the active workspace",
+      "args": "\u003cpath\u003e",
+      "sendsRaw": "/add-dir "
+    },
+    {
+      "name": "/agents",
+      "description": "Open the Agent Manager panel and monitor subagents",
+      "sendsRaw": "/agents\n"
+    },
+    {
+      "name": "/boost",
+      "description": "Run on-demand multi-agent deep reasoning loops",
+      "args": "\u003ctask\u003e",
+      "sendsRaw": "/boost "
+    },
+    {
+      "name": "/browser",
+      "description": "Delegate a web browsing or in-browser debugging task",
+      "args": "\u003ctask\u003e",
+      "sendsRaw": "/browser "
+    },
+    {
+      "name": "/codesearch",
+      "description": "Search code across the workspace (aliases /cs, /search)",
+      "args": "\u003cquery\u003e",
+      "sendsRaw": "/codesearch "
+    },
+    {
+      "name": "/btw",
+      "description": "Ask a side question in the background",
+      "args": "\u003cquery\u003e",
+      "sendsRaw": "/btw "
+    },
+    {
+      "name": "/copy",
+      "description": "Copy the last agent response to the clipboard",
+      "args": "[n|btw]",
+      "sendsRaw": "/copy "
+    },
+    {
+      "name": "/diff",
+      "description": "Open the interactive diff viewer",
+      "sendsRaw": "/diff\n"
+    },
+    {
+      "name": "/changelog",
+      "description": "Show CLI release notes",
+      "sendsRaw": "/changelog\n"
+    },
+    {
+      "name": "/context",
+      "description": "Show context usage visualization",
+      "sendsRaw": "/context\n"
+    },
+    {
+      "name": "/credits",
+      "description": "View remaining AI credits",
+      "sendsRaw": "/credits\n"
+    },
+    {
+      "name": "/keybindings",
+      "description": "View and edit keybindings",
+      "sendsRaw": "/keybindings\n"
+    },
+    {
+      "name": "/artifact",
+      "description": "Open the Artifact Review panel",
+      "sendsRaw": "/artifact\n"
+    },
+    {
+      "name": "/agy-customizations",
+      "description": "Load the customization reference for rules, skills, plugins, hooks",
+      "args": "[request]",
+      "sendsRaw": "/agy-customizations "
+    },
+    {
+      "name": "/antigravity-guide",
+      "description": "Ask how to use or configure Antigravity",
+      "args": "[question]",
+      "sendsRaw": "/antigravity-guide "
+    },
+    {
       "name": "/exit",
-      "description": "Exit the Antigravity CLI session",
+      "description": "Close the session (alias /quit)",
       "sendsRaw": "/exit\n"
     }
   ],
@@ -112,8 +348,7 @@
     "(?i)(allow|approve|confirm|proceed|run command|apply changes).*\\(y/n\\)",
     "(?i)\\[y/n\\]",
     "(?i)do you want to",
-    "(?i)waiting for approval",
-    "(?i)yes, allow"
-  ],
-  "env": {}
+    "(?i)press enter to (confirm|continue)",
+    "(?i)waiting for (your )?(approval|confirmation)"
+  ]
 }

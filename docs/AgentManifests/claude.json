@@ -1,0 +1,81 @@
+{
+  "$schema": "./schema.json",
+  "agentId": "claude",
+  "name": "Claude Code",
+  "launchCommand": "claude",
+  "commandCandidates": ["claude"],
+  "args": [],
+  "chatMode": "headless",
+  "headlessArgs": ["-p", "{prompt}", "--output-format", "text", "--dangerously-skip-permissions"],
+  "continueArgs": ["--continue"],
+  "providerMenus": {
+    "options": [
+      {
+        "id": "model",
+        "label": "Model",
+        "description": "Model alias or full model name used by Claude Code (see /model in the CLI)",
+        "flag": "--model",
+        "defaultValue": "default",
+        "choices": [
+          { "value": "default", "label": "Default (provider default)" },
+          { "value": "opus", "label": "Opus (latest, Opus 5.5)" },
+          { "value": "sonnet", "label": "Sonnet (latest, Sonnet 5.5)" },
+          { "value": "haiku", "label": "Haiku (latest, Haiku 5.5)" },
+          { "value": "fable", "label": "Fable (long-running tasks)" },
+          { "value": "opus[1m]", "label": "Opus with 1M context window" },
+          { "value": "sonnet[1m]", "label": "Sonnet with 1M context window" }
+        ]
+      }
+    ],
+    "inspectActions": [
+      {
+        "id": "version",
+        "label": "CLI Version",
+        "description": "Show installed Claude Code version",
+        "args": ["--version"]
+      },
+      {
+        "id": "help",
+        "label": "CLI Help",
+        "description": "Show Claude Code flags and usage",
+        "args": ["--help"]
+      }
+    ]
+  },
+  "modelSync": {
+    "optionId": "model",
+    "args": ["--help"],
+    "send": "/model\n",
+    "parser": "help-flag",
+    "sendParser": "columns",
+    "flag": "--model",
+    "timeoutSec": 20
+  },
+  "commands": [
+    { "name": "/help", "description": "Show Claude Code help and available commands", "sendsRaw": "/help\n" },
+    { "name": "/model", "description": "Open the model picker (aliases and full model names)", "args": "[model]", "sendsRaw": "/model " },
+    { "name": "/clear", "description": "Clear the conversation history", "sendsRaw": "/clear\n" },
+    { "name": "/compact", "description": "Summarize and compact the conversation context", "args": "[focus]", "sendsRaw": "/compact " },
+    { "name": "/config", "description": "Open the Claude Code settings panel", "sendsRaw": "/config\n" },
+    { "name": "/resume", "description": "Resume a previous conversation", "args": "[session]", "sendsRaw": "/resume " },
+    { "name": "/cost", "description": "Show token usage and cost for the session", "sendsRaw": "/cost\n" },
+    { "name": "/status", "description": "Show Claude Code status", "sendsRaw": "/status\n" },
+    { "name": "/mcp", "description": "List and manage MCP servers", "sendsRaw": "/mcp\n" },
+    { "name": "/permissions", "description": "View and manage tool permissions", "sendsRaw": "/permissions\n" },
+    { "name": "/add-dir", "description": "Add an additional working directory", "args": "<path>", "sendsRaw": "/add-dir " },
+    { "name": "/memory", "description": "Edit CLAUDE.md memory files", "sendsRaw": "/memory\n" },
+    { "name": "/agents", "description": "Manage custom subagents", "sendsRaw": "/agents\n" },
+    { "name": "/init", "description": "Initialize a CLAUDE.md file for the project", "sendsRaw": "/init\n" },
+    { "name": "/review", "description": "Review code changes", "sendsRaw": "/review\n" },
+    { "name": "/export", "description": "Export the current conversation", "sendsRaw": "/export\n" },
+    { "name": "/exit", "description": "Exit the Claude Code session (alias /quit)", "sendsRaw": "/exit\n" }
+  ],
+  "approvalPatterns": [
+    "(?i)(allow|approve|confirm|proceed|run command|apply changes).*\\(y/n\\)",
+    "(?i)\\[y/n\\]",
+    "(?i)do you want to",
+    "(?i)allow (once|always|for this session)",
+    "(?i)press enter to confirm"
+  ],
+  "env": {}
+}

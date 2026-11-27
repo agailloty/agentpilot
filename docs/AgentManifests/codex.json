@@ -1,0 +1,80 @@
+{
+  "$schema": "./schema.json",
+  "agentId": "codex",
+  "name": "OpenAI Codex CLI",
+  "launchCommand": "codex",
+  "commandCandidates": ["codex"],
+  "args": [],
+  "chatMode": "headless",
+  "headlessArgs": ["exec", "{prompt}", "--sandbox", "workspace-write", "--ask-for-approval", "never"],
+  "continueHeadlessArgs": ["exec", "resume", "--last", "{prompt}"],
+  "providerMenus": {
+    "options": [
+      {
+        "id": "model",
+        "label": "Model",
+        "description": "Model used by Codex CLI (see `codex debug models`)",
+        "flag": "--model",
+        "defaultValue": "default",
+        "choices": [
+          { "value": "default", "label": "Default (GPT-6.2 Sol)" },
+          { "value": "gpt-6.2-sol", "label": "GPT-6.2 Sol" },
+          { "value": "gpt-6.2-astra", "label": "GPT-6.2 Astra" },
+          { "value": "gpt-6.1-terra", "label": "GPT-6.1 Terra" },
+          { "value": "gpt-5.3-codex", "label": "GPT-5.3 Codex" },
+          { "value": "gpt-5.2-codex", "label": "GPT-5.2 Codex" },
+          { "value": "gpt-5.1-codex-max", "label": "GPT-5.1 Codex Max" }
+        ]
+      }
+    ],
+    "inspectActions": [
+      {
+        "id": "version",
+        "label": "CLI Version",
+        "description": "Show installed Codex CLI version",
+        "args": ["--version"]
+      },
+      {
+        "id": "models",
+        "label": "Model Catalog",
+        "description": "Print the raw model catalog Codex sees",
+        "args": ["debug", "models"]
+      },
+      {
+        "id": "help",
+        "label": "CLI Help",
+        "description": "Show Codex CLI flags and usage",
+        "args": ["--help"]
+      }
+    ]
+  },
+  "modelSync": {
+    "optionId": "model",
+    "args": ["debug", "models"],
+    "send": "/model\n",
+    "parser": "regex",
+    "pattern": "\\b(gpt-[0-9][a-z0-9._-]*)\\b",
+    "timeoutSec": 20
+  },
+  "commands": [
+    { "name": "/help", "description": "Show Codex CLI help and available commands", "sendsRaw": "/help\n" },
+    { "name": "/model", "description": "Open the model picker", "args": "[model]", "sendsRaw": "/model " },
+    { "name": "/approvals", "description": "Change the approval policy for this session", "args": "[policy]", "sendsRaw": "/approvals " },
+    { "name": "/sandbox", "description": "Change the sandbox mode for this session", "args": "[mode]", "sendsRaw": "/sandbox " },
+    { "name": "/compact", "description": "Compact the conversation context", "sendsRaw": "/compact\n" },
+    { "name": "/clear", "description": "Clear the conversation and start fresh (alias /new)", "sendsRaw": "/clear\n" },
+    { "name": "/diff", "description": "Show the current diff", "sendsRaw": "/diff\n" },
+    { "name": "/status", "description": "Show session status and token usage", "sendsRaw": "/status\n" },
+    { "name": "/mcp", "description": "List and manage MCP servers", "sendsRaw": "/mcp\n" },
+    { "name": "/undo", "description": "Undo the last change", "sendsRaw": "/undo\n" },
+    { "name": "/exit", "description": "Exit the Codex session (alias /quit)", "sendsRaw": "/exit\n" }
+  ],
+  "approvalPatterns": [
+    "(?i)(allow|approve|confirm|proceed|run command|apply changes).*\\(y/n\\)",
+    "(?i)\\[y/n\\]",
+    "(?i)do you want to",
+    "(?i)press enter to confirm",
+    "(?i)waiting for (your )?(approval|confirmation)"
+  ],
+  "env": {}
+}

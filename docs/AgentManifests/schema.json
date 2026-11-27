@@ -59,6 +59,59 @@
       },
       "description": "CLI arguments appended on turn > 0 to preserve conversation continuity."
     },
+    "continueHeadlessArgs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Optional full argument template used instead of headlessArgs+continueArgs on turn > 0, supporting {cwd} and {prompt} placeholders (e.g. codex exec resume --last)."
+    },
+    "modelSync": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Automatic discovery of the live model list exposed by the agent CLI, applied to the given provider option.",
+      "required": ["optionId", "parser"],
+      "properties": {
+        "optionId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ID of the providerMenus option whose choices are refreshed (must exist)."
+        },
+        "args": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Non-interactive CLI arguments used for discovery (e.g. [\"models\"] for `agy models`, [\"--help\"] for copilot)."
+        },
+        "send": {
+          "type": "string",
+          "description": "Fallback text written into a scratch PTY session when args yields nothing (e.g. \"/model\\n\")."
+        },
+        "parser": {
+          "type": "string",
+          "enum": ["columns", "help-flag", "json", "lines", "regex"],
+          "description": "Parser applied to the discovery output."
+        },
+        "sendParser": {
+          "type": "string",
+          "enum": ["columns", "help-flag", "json", "lines", "regex"],
+          "description": "Optional parser used for the send (PTY) attempt instead of parser."
+        },
+        "flag": {
+          "type": "string",
+          "description": "Flag whose help section enumerates models (help-flag parser, default --model)."
+        },
+        "pattern": {
+          "type": "string",
+          "description": "Regexp with capture groups applied per line (regex parser; group 1 = value, group 2 optional = label)."
+        },
+        "timeoutSec": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 300,
+          "description": "Discovery timeout in seconds."
+        }
+      }
+    },
     "providerMenus": {
       "type": "object",
       "additionalProperties": false,

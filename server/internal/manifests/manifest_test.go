@@ -21,15 +21,15 @@ func TestLoadDirInitialAgentManifests(t *testing.T) {
 	}
 
 	wantAgents := map[string]struct {
-		name               string
-		launchCommand      string
-		chatMode           string
-		minCommands        int
-		minPatterns        int
-		minOptions         int
-		minInspectActions  int
-		wantHeadlessArgs   bool
-		wantContinueArgs   bool
+		name              string
+		launchCommand     string
+		chatMode          string
+		minCommands       int
+		minPatterns       int
+		minOptions        int
+		minInspectActions int
+		wantHeadlessArgs  bool
+		wantContinueArgs  bool
 	}{
 		"shell": {
 			name:              "Interactive Shell",
@@ -73,6 +73,28 @@ func TestLoadDirInitialAgentManifests(t *testing.T) {
 			wantHeadlessArgs:  true,
 			wantContinueArgs:  true,
 		},
+		"claude": {
+			name:              "Claude Code",
+			launchCommand:     "claude",
+			chatMode:          ChatModeHeadless,
+			minCommands:       10,
+			minPatterns:       3,
+			minOptions:        1,
+			minInspectActions: 2,
+			wantHeadlessArgs:  true,
+			wantContinueArgs:  true,
+		},
+		"codex": {
+			name:              "OpenAI Codex CLI",
+			launchCommand:     "codex",
+			chatMode:          ChatModeHeadless,
+			minCommands:       8,
+			minPatterns:       3,
+			minOptions:        1,
+			minInspectActions: 2,
+			wantHeadlessArgs:  true,
+			wantContinueArgs:  true,
+		},
 	}
 
 	if len(loaded) != len(wantAgents) {
@@ -105,8 +127,8 @@ func TestLoadDirInitialAgentManifests(t *testing.T) {
 		if want.wantHeadlessArgs && len(m.HeadlessArgs) == 0 {
 			t.Errorf("%s: expected non-empty HeadlessArgs", id)
 		}
-		if want.wantContinueArgs && len(m.ContinueArgs) == 0 {
-			t.Errorf("%s: expected non-empty ContinueArgs", id)
+		if want.wantContinueArgs && len(m.ContinueArgs) == 0 && len(m.ContinueHeadlessArgs) == 0 {
+			t.Errorf("%s: expected non-empty ContinueArgs or ContinueHeadlessArgs", id)
 		}
 		if m.ProviderMenus == nil {
 			t.Errorf("%s: expected non-nil ProviderMenus", id)
@@ -137,6 +159,24 @@ func TestLoadDirInitialAgentManifests(t *testing.T) {
 		}
 		if _, err := m.CompileApprovalPatterns(); err != nil {
 			t.Errorf("%s: CompileApprovalPatterns() error = %v", id, err)
+		}
+
+		// Every CLI agent (not the raw shell) must declare a modelSync spec so
+		// its model choices can be refreshed from the CLI itself.
+		if id != "shell" {
+			if m.ModelSync == nil {
+				t.Errorf("%s: expected non-nil ModelSync", id)
+			} else {
+				if m.FindOption(m.ModelSync.OptionID) == nil {
+					t.Errorf("%s: ModelSync.OptionID %q not found in options", id, m.ModelSync.OptionID)
+				}
+				if len(m.ModelSync.Args) == 0 && strings.TrimSpace(m.ModelSync.Send) == "" {
+					t.Errorf("%s: ModelSync must define args or send", id)
+				}
+				if !IsKnownModelSyncParser(m.ModelSync.Parser) {
+					t.Errorf("%s: ModelSync.Parser %q unknown", id, m.ModelSync.Parser)
+				}
+			}
 		}
 
 		// Verify strict schema conformity (no unknown fields) on the raw JSON file.
@@ -325,5 +365,59 @@ func TestManifestCandidates(t *testing.T) {
 	want := []string{"vibe", "mistral"}
 	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
 		t.Fatalf("Candidates() = %v, want %v", got, want)
+	}
+}
+
+func TestValidateModelSync(t *testing.T) {
+	base := func() *Manifest {
+		return &Manifest{
+			AgentID:       "x",
+			Name:          "X",
+			LaunchCommand: "x",
+			ProviderMenus: &ProviderMenus{
+				Options: []ProviderOption{{
+					ID:      "model",
+					Label:   "Model",
+					Flag:    "--model",
+					Choices: []OptionChoice{{Value: "default", Label: "Default"}},
+				}},
+			},
+			Commands:         []Command{},
+			ApprovalPatterns: []string{},
+		}
+	}
+
+	valid := base()
+	valid.ModelSync = &ModelSyncSpec{OptionID: "model", Args: []string{"models"}, Parser: "columns"}
+	if err := valid.Validate(); err != nil {
+		t.Fatalf("valid modelSync rejected: %v", err)
+	}
+
+	cases := []struct {
+		name string
+		spec *ModelSyncSpec
+	}{
+		{"missing optionId", &ModelSyncSpec{Parser: "columns", Args: []string{"models"}}},
+		{"unknown optionId", &ModelSyncSpec{OptionID: "nope", Parser: "columns", Args: []string{"models"}}},
+		{"missing parser", &ModelSyncSpec{OptionID: "model", Args: []string{"models"}}},
+		{"unknown parser", &ModelSyncSpec{OptionID: "model", Parser: "wat", Args: []string{"models"}}},
+		{"unknown sendParser", &ModelSyncSpec{OptionID: "model", Parser: "columns", SendParser: "wat", Args: []string{"models"}}},
+		{"no args nor send", &ModelSyncSpec{OptionID: "model", Parser: "columns"}},
+		{"regex without pattern", &ModelSyncSpec{OptionID: "model", Parser: "regex", Args: []string{"--help"}}},
+		{"timeout too large", &ModelSyncSpec{OptionID: "model", Parser: "columns", Args: []string{"models"}, TimeoutSec: 999}},
+	}
+	for _, tc := range cases {
+		m := base()
+		m.ModelSync = tc.spec
+		if err := m.Validate(); err == nil {
+			t.Errorf("%s: Validate() = nil, want error", tc.name)
+		}
+	}
+
+	// send-only spec is valid
+	m := base()
+	m.ModelSync = &ModelSyncSpec{OptionID: "model", Send: "/model\n", Parser: "columns", SendParser: "columns"}
+	if err := m.Validate(); err != nil {
+		t.Fatalf("send-only modelSync rejected: %v", err)
 	}
 }

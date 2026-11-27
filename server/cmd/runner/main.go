@@ -15,6 +15,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/agailloty/agentpilot/server/internal/manifests"
+	"github.com/agailloty/agentpilot/server/internal/modelsync"
 	"github.com/agailloty/agentpilot/server/internal/pty"
 	"github.com/agailloty/agentpilot/server/internal/runner"
 	"github.com/agailloty/agentpilot/server/internal/version"
@@ -31,6 +33,14 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "inspect" {
 		if err := runInspectCommand(os.Args[2:], os.Stdout); err != nil {
 			fmt.Fprintf(os.Stderr, "agentpilot-runner inspect: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	if len(os.Args) > 1 && os.Args[1] == "models" {
+		if err := runModelsCommand(os.Args[2:], os.Stdout); err != nil {
+			fmt.Fprintf(os.Stderr, "agentpilot-runner models: %v\n", err)
 			os.Exit(1)
 		}
 		return
@@ -198,6 +208,184 @@ func runInspectCommand(args []string, stdout io.Writer) error {
 	enc := json.NewEncoder(stdout)
 	enc.SetIndent("", "  ")
 	return enc.Encode(res)
+}
+
+// modelsCommandResult is the JSON report emitted by the runner models subcommand.
+type modelsCommandResult struct {
+	AgentID    string            `json:"agentId"`
+	Command    string            `json:"command"`
+	Mode       string            `json:"mode"`
+	ExitCode   int               `json:"exitCode"`
+	DurationMs int64             `json:"durationMs"`
+	Parser     string            `json:"parser"`
+	Models     []modelsync.Model `json:"models"`
+	Manifest   string            `json:"manifest,omitempty"`
+	Written    bool              `json:"written,omitempty"`
+	Raw        string            `json:"raw,omitempty"`
+}
+
+// runModelsCommand discovers the live model list of an agent CLI on this host,
+// prints it as JSON, and optionally rewrites the model choices of a manifest
+// file (--manifest + --write).
+func runModelsCommand(args []string, stdout io.Writer) error {
+	var (
+		agentID      string
+		cmdBinary    string
+		cmdArgsRaw   string
+		send         string
+		parser       string
+		flagName     string
+		pattern      string
+		manifestPath string
+		write        bool
+		cwd          string
+		raw          bool
+		timeout      = 25 * time.Second
+	)
+
+	fs := flag.NewFlagSet("agentpilot-runner models", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	fs.StringVar(&agentID, "agent-id", "", "Agent ID (required)")
+	fs.StringVar(&cmdBinary, "cmd", "", "Agent CLI binary to query (required)")
+	fs.StringVar(&cmdArgsRaw, "args", "", "Optional space-separated arguments for --cmd (e.g. \"models\")")
+	fs.StringVar(&send, "send", "", "Optional text written into a scratch PTY session (e.g. \"/model\\n\")")
+	fs.StringVar(&parser, "parser", "", "Output parser: columns, help-flag, json, lines, regex (default from --manifest, else columns)")
+	fs.StringVar(&flagName, "flag", "", "Flag whose help section lists models (help-flag parser, default --model)")
+	fs.StringVar(&pattern, "pattern", "", "Regexp with capture groups for the regex parser")
+	fs.StringVar(&manifestPath, "manifest", "", "Optional manifest JSON file; its modelSync spec provides defaults and --write target")
+	fs.BoolVar(&write, "write", false, "Rewrite the model choices of --manifest in place")
+	fs.StringVar(&cwd, "cwd", "", "Optional working directory for the discovery run")
+	fs.BoolVar(&raw, "raw", false, "Include raw CLI output in the JSON report")
+	fs.DurationVar(&timeout, "timeout", timeout, "Discovery timeout (default 25s)")
+
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(agentID) == "" {
+		return errors.New("--agent-id is required")
+	}
+	if strings.TrimSpace(cmdBinary) == "" {
+		return errors.New("--cmd is required")
+	}
+
+	// Defaults may come from the manifest's modelSync spec.
+	var manifest *manifests.Manifest
+	if manifestPath != "" {
+		rawManifest, err := os.ReadFile(manifestPath)
+		if err != nil {
+			return fmt.Errorf("read manifest: %w", err)
+		}
+		var m manifests.Manifest
+		if err := json.Unmarshal(rawManifest, &m); err != nil {
+			return fmt.Errorf("parse manifest: %w", err)
+		}
+		manifest = &m
+		if m.ModelSync != nil {
+			if parser == "" {
+				parser = m.ModelSync.Parser
+			}
+			if cmdArgsRaw == "" && len(m.ModelSync.Args) > 0 {
+				cmdArgsRaw = strings.Join(m.ModelSync.Args, " ")
+			}
+			if send == "" {
+				send = m.ModelSync.Send
+			}
+			if flagName == "" {
+				flagName = m.ModelSync.Flag
+			}
+			if pattern == "" {
+				pattern = m.ModelSync.Pattern
+			}
+			if timeout == 25*time.Second && m.ModelSync.TimeoutSec > 0 {
+				timeout = time.Duration(m.ModelSync.TimeoutSec) * time.Second
+			}
+		}
+	}
+	if parser == "" {
+		parser = modelsync.ParserColumns
+	}
+	if !modelsync.IsKnownParser(parser) {
+		return fmt.Errorf("unknown parser %q (known: %s)", parser, strings.Join(modelsync.Parsers(), ", "))
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	ptyMgr := pty.NewManager()
+	defer func() {
+		_ = ptyMgr.CloseAll()
+	}()
+
+	res, err := runner.RunModelsSync(ctx, runner.ModelsSyncOptions{
+		Command:    cmdBinary,
+		Args:       splitCLIArgs(cmdArgsRaw),
+		Send:       send,
+		Cwd:        cwd,
+		Timeout:    timeout,
+		PTYManager: ptyMgr,
+	})
+	if err != nil {
+		return err
+	}
+
+	models, parseErr := modelsync.Parse(parser, flagName, pattern, res.Output)
+	if parseErr != nil {
+		return parseErr
+	}
+
+	out := modelsCommandResult{
+		AgentID:    agentID,
+		Command:    cmdBinary,
+		Mode:       res.Mode,
+		ExitCode:   res.ExitCode,
+		DurationMs: res.DurationMs,
+		Parser:     parser,
+		Models:     models,
+		Manifest:   manifestPath,
+	}
+	if raw {
+		out.Raw = res.Output
+	}
+
+	if write {
+		if manifest == nil || manifest.ModelSync == nil {
+			return errors.New("--write requires --manifest pointing to a manifest with a modelSync block")
+		}
+		if len(models) == 0 {
+			return errors.New("no models parsed from CLI output; manifest left unchanged")
+		}
+		effSpec := manifests.ModelSyncSpec{OptionID: manifest.ModelSync.OptionID}
+		if manifest.ModelSync != nil {
+			effSpec = *manifest.ModelSync
+		}
+		if parser != "" {
+			effSpec.Parser = parser
+		}
+		if flagName != "" {
+			effSpec.Flag = flagName
+		}
+		if pattern != "" {
+			effSpec.Pattern = pattern
+		}
+		updated, _, err := modelsync.ApplyWithSpec(effSpec, *manifest, res.Output)
+		if err != nil {
+			return err
+		}
+		encoded, err := json.MarshalIndent(updated, "", "  ")
+		if err != nil {
+			return err
+		}
+		encoded = append(encoded, '\n')
+		if err := os.WriteFile(manifestPath, encoded, 0o644); err != nil {
+			return fmt.Errorf("write manifest: %w", err)
+		}
+		out.Written = true
+		manifest = &updated
+	}
+
+	enc := json.NewEncoder(stdout)
+	enc.SetIndent("", "  ")
+	return enc.Encode(out)
 }
 
 func splitCLIArgs(raw string) []string {

@@ -25,6 +25,9 @@ const (
 var (
 	reSlashHelpLine = regexp.MustCompile(`^(/[A-Za-z0-9][A-Za-z0-9_-]*)(?:[:\s]+(.*))?$`)
 	reHelpBullet    = regexp.MustCompile(`^(?:[*•\-]+)\s+(/.*)$`)
+	// reTUIPrompt matches an interactive prompt marker (vibe "ask ─>", codex
+	// "›", claude code / copilot ">") anywhere in the reconstructed output tail.
+	reTUIPrompt = regexp.MustCompile(`(?:─>|›|>)`)
 )
 
 // InspectOptions configures a scratch PTY /help inspection run.
@@ -88,15 +91,63 @@ func RunInspect(ctx context.Context, opts InspectOptions) (InspectResult, error)
 	}
 
 	sessionID := fmt.Sprintf("inspect-%s-%d", agentID, time.Now().UnixNano())
+	// "\r\n" instead of a bare "\r": Linux PTY line discipline in canonical
+	// mode does not translate "\r" (ICRNL unset by go-pty), so the line would
+	// never be delivered to the child; "\n" terminates it on every platform.
+	raw, err := captureScratchPTY(ctx, ptyMgr, sessionID, command, opts.Args, opts.Env, "/help\r\n", timeout, initWait, idleWait, false)
+	if err != nil {
+		return InspectResult{}, err
+	}
+
+	discovered := ParseHelpOutput([]byte(raw))
+	res := InspectResult{
+		AgentID:    agentID,
+		Discovered: discovered,
+	}
+
+	if manifestPath := strings.TrimSpace(opts.ManifestPath); manifestPath != "" {
+		rawManifest, err := os.ReadFile(manifestPath)
+		if err != nil {
+			return InspectResult{}, fmt.Errorf("inspect: read manifest %q: %w", manifestPath, err)
+		}
+		var m manifests.Manifest
+		if err := json.Unmarshal(rawManifest, &m); err != nil {
+			return InspectResult{}, fmt.Errorf("inspect: parse manifest %q: %w", manifestPath, err)
+		}
+		diff := DiffManifestCommands(m.Commands, discovered)
+		res.Added = &diff.Added
+		res.Removed = &diff.Removed
+		res.Unchanged = &diff.Unchanged
+	}
+
+	return res, nil
+}
+
+// captureScratchPTY spawns a scratch PTY session for command, waits initWait
+// for the startup banner, writes send (unless empty or the process already
+// exited), then collects output until idleWait of silence or timeout. When
+// quietBeforeSend is true, the send is delayed until the output has been quiet
+// for idleWait (after at least initWait), so slow-starting TUIs are ready.
+// It returns the raw collected bytes (ANSI sequences included).
+func captureScratchPTY(
+	ctx context.Context,
+	ptyMgr *pty.Manager,
+	sessionID, command string,
+	args []string,
+	env map[string]string,
+	send string,
+	timeout, initWait, idleWait time.Duration,
+	quietBeforeSend bool,
+) (string, error) {
 	sess, err := ptyMgr.Spawn(sessionID, pty.SpawnOptions{
 		Command: command,
-		Args:    opts.Args,
-		Env:     opts.Env,
+		Args:    args,
+		Env:     env,
 		Cols:    120,
 		Rows:    40,
 	})
 	if err != nil {
-		return InspectResult{}, fmt.Errorf("inspect: spawn %q: %w", command, err)
+		return "", fmt.Errorf("inspect: spawn %q: %w", command, err)
 	}
 	defer func() {
 		_ = ptyMgr.Close(sessionID)
@@ -128,37 +179,71 @@ func RunInspect(ctx context.Context, opts InspectOptions) (InspectResult, error)
 	inspectCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	// Brief initial wait for prompt/startup banner, unless the process exits early.
+	// Brief initial wait for prompt/startup banner, unless the process exits
+	// early. With quietBeforeSend, keep waiting until the output has been
+	// quiet for idleWait (after at least initWait) or a TUI prompt marker is
+	// visible, capped at preSendMaxWait, so slow-starting TUIs are ready.
+	const preSendMaxWait = 12 * time.Second
+	start := time.Now()
 	initTimer := time.NewTimer(initWait)
+	quietTimer := time.NewTimer(idleWait)
+	maxTimer := time.NewTimer(preSendMaxWait)
+	stopTimers := func() {
+		initTimer.Stop()
+		quietTimer.Stop()
+		maxTimer.Stop()
+	}
 initLoop:
 	for {
 		select {
 		case chunk := <-chunkCh:
 			collected.Write(chunk)
+			resetTimer(quietTimer, idleWait)
+			if quietBeforeSend && time.Since(start) >= initWait {
+				tail := collected.Bytes()
+				if len(tail) > 4096 {
+					tail = tail[len(tail)-4096:]
+				}
+				if reTUIPrompt.MatchString(stripANSIForHelp(tail)) {
+					stopTimers()
+					break initLoop
+				}
+			}
 		case <-doneCh:
-			initTimer.Stop()
+			stopTimers()
 			drainChunks(&collected, chunkCh)
 			break initLoop
 		case <-initTimer.C:
+			if quietBeforeSend {
+				continue
+			}
+			quietTimer.Stop()
+			maxTimer.Stop()
+			break initLoop
+		case <-quietTimer.C:
+			if quietBeforeSend && time.Since(start) >= initWait {
+				stopTimers()
+				break initLoop
+			}
+			resetTimer(quietTimer, idleWait)
+		case <-maxTimer.C:
+			initTimer.Stop()
+			quietTimer.Stop()
 			break initLoop
 		case <-inspectCtx.Done():
-			initTimer.Stop()
+			stopTimers()
 			drainChunks(&collected, chunkCh)
 			break initLoop
 		}
 	}
 
-	// Only write /help\r if the scratch session has not already exited.
+	// Only write send if the scratch session has not already exited.
 	select {
 	case <-doneCh:
 		drainChunks(&collected, chunkCh)
 	default:
-		if inspectCtx.Err() == nil {
-			// "\r\n" instead of a bare "\r": Linux PTY line discipline in
-			// canonical mode does not translate "\r" (ICRNL unset by go-pty),
-			// so the line would never be delivered to the child; "\n"
-			// terminates it on every platform without changing semantics.
-			_, _ = sess.Write([]byte("/help\r\n"))
+		if inspectCtx.Err() == nil && send != "" {
+			_, _ = sess.Write([]byte(send))
 			idleTimer := time.NewTimer(idleWait)
 		collectLoop:
 			for {
@@ -182,28 +267,7 @@ initLoop:
 		}
 	}
 
-	discovered := ParseHelpOutput(collected.Bytes())
-	res := InspectResult{
-		AgentID:    agentID,
-		Discovered: discovered,
-	}
-
-	if manifestPath := strings.TrimSpace(opts.ManifestPath); manifestPath != "" {
-		rawManifest, err := os.ReadFile(manifestPath)
-		if err != nil {
-			return InspectResult{}, fmt.Errorf("inspect: read manifest %q: %w", manifestPath, err)
-		}
-		var m manifests.Manifest
-		if err := json.Unmarshal(rawManifest, &m); err != nil {
-			return InspectResult{}, fmt.Errorf("inspect: parse manifest %q: %w", manifestPath, err)
-		}
-		diff := DiffManifestCommands(m.Commands, discovered)
-		res.Added = &diff.Added
-		res.Removed = &diff.Removed
-		res.Unchanged = &diff.Unchanged
-	}
-
-	return res, nil
+	return collected.String(), nil
 }
 
 func drainChunks(dst *bytes.Buffer, ch <-chan []byte) {

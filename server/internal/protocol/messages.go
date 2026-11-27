@@ -26,6 +26,7 @@ const (
 	TypeChatDone      = "chat-done"
 	TypeChatCancel    = "chat-cancel"
 	TypeMenuInspect   = "menu-inspect"
+	TypeModelsSync    = "models-sync"
 	TypeAck           = "ack"
 	TypeError         = "error"
 )
@@ -257,6 +258,26 @@ type MenuInspectAckPayload struct {
 	ExitCode   int    `json:"exitCode"`
 	Output     string `json:"output"`
 	DurationMs int64  `json:"durationMs"`
+}
+
+// ModelsSyncPayload requests discovery of the live model list of an agent CLI.
+// Args runs the command non-interactively; otherwise Send is written into a
+// scratch PTY session (e.g. "/model\n").
+type ModelsSyncPayload struct {
+	Command    string   `json:"command"`
+	Args       []string `json:"args,omitempty"`
+	Send       string   `json:"send,omitempty"`
+	Cwd        string   `json:"cwd,omitempty"`
+	TimeoutSec int      `json:"timeoutSec,omitempty"`
+}
+
+// ModelsSyncAckPayload returns the raw (ANSI-stripped) output of a model
+// discovery run. Mode is "exec" or "pty".
+type ModelsSyncAckPayload struct {
+	ExitCode   int    `json:"exitCode"`
+	Output     string `json:"output"`
+	DurationMs int64  `json:"durationMs"`
+	Mode       string `json:"mode"`
 }
 
 // ErrorPayload carries an error description in an error or failed ack message.

@@ -58,20 +58,66 @@ type ProviderMenus struct {
 	InspectActions []InspectAction  `json:"inspectActions"`
 }
 
+// modelSync parser names supported by the modelsync package.
+const (
+	ModelSyncParserColumns  = "columns"
+	ModelSyncParserHelpFlag = "help-flag"
+	ModelSyncParserJSON     = "json"
+	ModelSyncParserLines    = "lines"
+	ModelSyncParserRegex    = "regex"
+)
+
+// ModelSyncParsers lists the supported modelSync parser names.
+var ModelSyncParsers = []string{
+	ModelSyncParserColumns,
+	ModelSyncParserHelpFlag,
+	ModelSyncParserJSON,
+	ModelSyncParserLines,
+	ModelSyncParserRegex,
+}
+
+// IsKnownModelSyncParser reports whether name is a supported modelSync parser.
+func IsKnownModelSyncParser(name string) bool {
+	for _, p := range ModelSyncParsers {
+		if p == name {
+			return true
+		}
+	}
+	return false
+}
+
+// ModelSyncSpec declares how to discover the live model list of an agent CLI so
+// the provider option choices always match what the CLI itself offers.
+// Args runs the CLI non-interactively (e.g. ["models"] for `agy models`);
+// Send is the fallback written into a scratch PTY session (e.g. "/model\n").
+// Parser names the output parser (columns, help-flag, json, lines, regex).
+type ModelSyncSpec struct {
+	OptionID   string   `json:"optionId"`
+	Args       []string `json:"args,omitempty"`
+	Send       string   `json:"send,omitempty"`
+	Parser     string   `json:"parser"`
+	SendParser string   `json:"sendParser,omitempty"`
+	Flag       string   `json:"flag,omitempty"`
+	Pattern    string   `json:"pattern,omitempty"`
+	TimeoutSec int      `json:"timeoutSec,omitempty"`
+}
+
 // Manifest defines an agent CLI capability catalog and launch configuration.
 type Manifest struct {
-	AgentID           string            `json:"agentId"`
-	Name              string            `json:"name"`
-	LaunchCommand     string            `json:"launchCommand"`
-	CommandCandidates []string          `json:"commandCandidates,omitempty"`
-	Args              []string          `json:"args,omitempty"`
-	ChatMode          string            `json:"chatMode,omitempty"`
-	HeadlessArgs      []string          `json:"headlessArgs,omitempty"`
-	ContinueArgs      []string          `json:"continueArgs,omitempty"`
-	ProviderMenus     *ProviderMenus    `json:"providerMenus,omitempty"`
-	Commands          []Command         `json:"commands"`
-	ApprovalPatterns  []string          `json:"approvalPatterns"`
-	Env               map[string]string `json:"env,omitempty"`
+	AgentID              string            `json:"agentId"`
+	Name                 string            `json:"name"`
+	LaunchCommand        string            `json:"launchCommand"`
+	CommandCandidates    []string          `json:"commandCandidates,omitempty"`
+	Args                 []string          `json:"args,omitempty"`
+	ChatMode             string            `json:"chatMode,omitempty"`
+	HeadlessArgs         []string          `json:"headlessArgs,omitempty"`
+	ContinueArgs         []string          `json:"continueArgs,omitempty"`
+	ContinueHeadlessArgs []string          `json:"continueHeadlessArgs,omitempty"`
+	ProviderMenus        *ProviderMenus    `json:"providerMenus,omitempty"`
+	ModelSync            *ModelSyncSpec    `json:"modelSync,omitempty"`
+	Commands             []Command         `json:"commands"`
+	ApprovalPatterns     []string          `json:"approvalPatterns"`
+	Env                  map[string]string `json:"env,omitempty"`
 }
 
 // Candidates returns LaunchCommand followed by any distinct non-empty entries in CommandCandidates.
@@ -123,6 +169,19 @@ func (m Manifest) FindInspectAction(actionID string) (InspectAction, bool) {
 		}
 	}
 	return InspectAction{}, false
+}
+
+// FindOption returns a pointer to the provider option with the given ID.
+func (m *Manifest) FindOption(optionID string) *ProviderOption {
+	if m.ProviderMenus == nil {
+		return nil
+	}
+	for i := range m.ProviderMenus.Options {
+		if m.ProviderMenus.Options[i].ID == optionID {
+			return &m.ProviderMenus.Options[i]
+		}
+	}
+	return nil
 }
 
 // Validate checks required fields, command metadata, provider menus, and compiles all approval pattern regexes.
@@ -193,6 +252,34 @@ func (m *Manifest) Validate() error {
 			if len(act.Args) == 0 {
 				return fmt.Errorf("manifests: providerMenus.inspectActions[%d].args must not be empty", i)
 			}
+		}
+	}
+
+	if m.ModelSync != nil {
+		spec := m.ModelSync
+		if strings.TrimSpace(spec.OptionID) == "" {
+			return errors.New("manifests: modelSync.optionId is required")
+		}
+		if m.FindOption(spec.OptionID) == nil {
+			return fmt.Errorf("manifests: modelSync.optionId %q does not match any providerMenus.options id", spec.OptionID)
+		}
+		if strings.TrimSpace(spec.Parser) == "" {
+			return errors.New("manifests: modelSync.parser is required")
+		}
+		if !IsKnownModelSyncParser(strings.TrimSpace(spec.Parser)) {
+			return fmt.Errorf("manifests: modelSync.parser %q is unknown (known: %s)", spec.Parser, strings.Join(ModelSyncParsers, ", "))
+		}
+		if strings.TrimSpace(spec.SendParser) != "" && !IsKnownModelSyncParser(strings.TrimSpace(spec.SendParser)) {
+			return fmt.Errorf("manifests: modelSync.sendParser %q is unknown (known: %s)", spec.SendParser, strings.Join(ModelSyncParsers, ", "))
+		}
+		if len(spec.Args) == 0 && strings.TrimSpace(spec.Send) == "" {
+			return errors.New("manifests: modelSync requires args or send")
+		}
+		if spec.TimeoutSec < 0 || spec.TimeoutSec > 300 {
+			return fmt.Errorf("manifests: modelSync.timeoutSec must be between 0 and 300, got %d", spec.TimeoutSec)
+		}
+		if strings.TrimSpace(spec.Parser) == ModelSyncParserRegex && strings.TrimSpace(spec.Pattern) == "" {
+			return errors.New("manifests: modelSync.pattern is required when parser is \"regex\"")
 		}
 	}
 

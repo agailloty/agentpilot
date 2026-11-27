@@ -63,6 +63,12 @@ func (c *Client) handleEnvelope(ctx context.Context, wc *wsConn, env protocol.En
 			defer handlerWG.Done()
 			c.handleMenuInspect(ctx, wc, env)
 		}()
+	case protocol.TypeModelsSync:
+		handlerWG.Add(1)
+		go func() {
+			defer handlerWG.Done()
+			c.handleModelsSync(ctx, wc, env)
+		}()
 	default:
 		if env.CorrelationID != "" {
 			c.replyError(wc, env.SessionID, env.CorrelationID, fmt.Sprintf("unsupported message type: %s", env.Type))

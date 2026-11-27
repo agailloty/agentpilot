@@ -2,6 +2,11 @@
 
 Deploy `agentpilot-server` on an homelab host reachable only over LAN or a Tailscale tailnet.
 
+New to AgentPilot? Follow the end-to-end guide in [docs/INSTALL.md](../docs/INSTALL.md)
+(server image + runner install scripts + verification checklist). Auth/token
+details: [docs/AUTHENTICATION.md](../docs/AUTHENTICATION.md). This file is the
+canonical reference for deployment configuration.
+
 ## Security Rails
 
 - **No public exposure**: Never expose `agentpilot-server` via a public reverse proxy, port forwarding, or public tunnel.
@@ -55,15 +60,18 @@ On every push to `main` (or a `v*` tag), after the `go` and `web` jobs pass, the
 ghcr.io/agailloty/agentpilot-server
 ```
 
-Tags published: `latest` (default branch), `sha-<commit>` (every build), and the semver version (`v1.2.3` → `1.2.3`) on version tags. Pull requests only build the image (no push). To run it:
+Tags published: `latest` (default branch), `sha-<commit>` (every build, e.g. `sha-76f46a1`), and the semver version (`v1.2.3` → `1.2.3`) on version tags. Pull requests only build the image (no push). To run a prebuilt image (pin a `sha-<commit>` or semver tag in production):
 
 ```sh
+docker pull ghcr.io/agailloty/agentpilot-server:sha-76f46a1
 docker run -d --name agentpilot-server \
   -p 127.0.0.1:8088:8080 \
   -v agentpilot_data:/data \
   --env-file deploy/.env \
-  ghcr.io/agailloty/agentpilot-server:latest
+  ghcr.io/agailloty/agentpilot-server:sha-76f46a1
 ```
+
+Bind the host port to a LAN/Tailscale IP (never `0.0.0.0`) to reach it from other devices; see [docs/INSTALL.md](../docs/INSTALL.md#step-1--deploy-the-server).
 
 ### Runner binaries (GitHub Releases, via GoReleaser)
 
@@ -80,7 +88,16 @@ Each archive contains the `agentpilot-runner` binary; `checksums.txt` lists SHA-
 - **On pull requests and pushes to `main`**: `goreleaser check` validates the config and a `build --snapshot` verifies the cross-compilation; the snapshot output is uploaded as the `agentpilot-runner-snapshot` workflow artifact.
 - **On a `v*` tag push** (`git tag v0.1.0 && git push --tags`): `goreleaser release` publishes the archives and `checksums.txt` to the GitHub Release at [github.com/agailloty/agentpilot/releases](https://github.com/agailloty/agentpilot/releases).
 
-To install a runner on a homelab machine, download the archive matching its platform, extract the binary into `PATH`, and start it with the server URL and a `runner`-scoped Bearer token (see `AGENTPILOT_TOKENS` above):
+To install a runner on a homelab machine, use the helper scripts (they download the archive for the requested version tag, verify it against `checksums.txt` and write a ready-to-use env file):
+
+```sh
+# Linux
+curl -fsSL https://raw.githubusercontent.com/agailloty/agentpilot/main/scripts/install-runner.sh | bash -s -- v0.1.0 --server http://<server-ip>:8080 --token <runner-secret> --roots /srv/repos
+# Windows (PowerShell)
+irm https://raw.githubusercontent.com/agailloty/agentpilot/main/scripts/install-runner.ps1 -OutFile install-runner.ps1; .\install-runner.ps1 -Version v0.1.0 -Server http://<server-ip>:8080 -Token <runner-secret> -Roots C:\repos
+```
+
+Or manually: download the archive matching the machine platform, extract the binary into `PATH`, and start it with the server URL and a `runner`-scoped Bearer token (see `AGENTPILOT_TOKENS` above):
 
 ```sh
 agentpilot-runner --server http://<server-ip>:8088 --token <runner-secret> --roots C:\path\to\workspaces

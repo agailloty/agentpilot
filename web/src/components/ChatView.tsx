@@ -35,7 +35,7 @@ import {
   type ChatSocketStatus,
   type WebSocketConstructor,
 } from '../api/chatSocket';
-import type { ChatMessage, MenuActionResult, SessionMeta } from '../api/types';
+import type { ChatMessage, MenuActionResult, ModelsRefreshResult, SessionMeta } from '../api/types';
 import { MarkdownMessage } from './MarkdownMessage';
 import { ProviderMenuDrawer, type ProviderMenuTab } from './ProviderMenuDrawer';
 
@@ -86,7 +86,7 @@ export function ChatView({
   onOpenSession,
   webSocketFactory,
 }: ChatViewProps) {
-  const { client, agents, refreshSessions } = useApp();
+  const { client, agents, refreshSessions, refreshAgents } = useApp();
 
   const [sessionState, setSessionState] = useState<SessionMeta>(session);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -380,6 +380,18 @@ export function ChatView({
       throw new Error('Client non authentifié');
     }
     return client.runProviderMenuAction(sessionState.id, actionId);
+  }
+
+  async function handleRefreshModels(
+    agentId: string,
+    machine?: string,
+  ): Promise<ModelsRefreshResult> {
+    if (!client) {
+      throw new Error('Client non authentifié');
+    }
+    const res = await client.refreshAgentModels(agentId, machine);
+    await refreshAgents();
+    return res;
   }
 
   async function handleLoadSessionCommand() {
@@ -854,6 +866,7 @@ export function ChatView({
         onUpdateOptions={handleUpdateOptions}
         onLoadSessionCommand={handleLoadSessionCommand}
         onRunInspectAction={handleRunInspectAction}
+        onRefreshModels={handleRefreshModels}
       />
     </div>
   );

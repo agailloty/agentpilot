@@ -63,6 +63,28 @@ export interface ProviderMenus {
   inspectActions: InspectAction[];
 }
 
+export interface ModelSyncSpec {
+  optionId: string;
+  args?: string[];
+  send?: string;
+  parser: string;
+  sendParser?: string;
+  flag?: string;
+  pattern?: string;
+  timeoutSec?: number;
+}
+
+export interface ModelsRefreshResult {
+  agentId: string;
+  optionId: string;
+  parser: string;
+  mode: string;
+  exitCode: number;
+  count: number;
+  models: OptionChoice[];
+  refreshedAt: string;
+}
+
 export interface AgentMachineInstallation {
   machineName: string;
   online: boolean;
@@ -77,6 +99,7 @@ export interface AgentManifest {
   args: string[];
   chatMode: string;
   providerMenus?: ProviderMenus;
+  modelSync?: ModelSyncSpec;
   commands: CommandSpec[];
   installed: boolean;
   executablePath?: string;

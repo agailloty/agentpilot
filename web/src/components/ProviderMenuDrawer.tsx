@@ -4,6 +4,7 @@ import {
   Copy,
   Loader2,
   Play,
+  RefreshCw,
   SlidersHorizontal,
   Bug,
   Wrench,
@@ -12,6 +13,8 @@ import {
 import type {
   AgentManifest,
   MenuActionResult,
+  ModelsRefreshResult,
+  OptionChoice,
   SessionCommandInfo,
   SessionMeta,
 } from '../api/types';
@@ -27,6 +30,7 @@ export interface ProviderMenuDrawerProps {
   onUpdateOptions: (nextOptions: Record<string, string>) => Promise<void>;
   onLoadSessionCommand: () => Promise<SessionCommandInfo>;
   onRunInspectAction: (actionId: string) => Promise<MenuActionResult>;
+  onRefreshModels?: (agentId: string, machine?: string) => Promise<ModelsRefreshResult>;
 }
 
 function formatDuration(ms: number): string {
@@ -43,6 +47,7 @@ export function ProviderMenuDrawer({
   onUpdateOptions,
   onLoadSessionCommand,
   onRunInspectAction,
+  onRefreshModels,
 }: ProviderMenuDrawerProps) {
   const [activeTab, setActiveTab] = useState<ProviderMenuTab>(initialTab);
   const [savingOptionId, setSavingOptionId] = useState<string | null>(null);
@@ -55,6 +60,9 @@ export function ProviderMenuDrawer({
   const [inspectResult, setInspectResult] = useState<MenuActionResult | null>(null);
   const [inspectError, setInspectError] = useState<string | null>(null);
   const [copiedInspect, setCopiedInspect] = useState(false);
+  const [syncingModels, setSyncingModels] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncedChoices, setSyncedChoices] = useState<Record<string, OptionChoice[]>>({});
 
   // Keep the loader callable without retriggering the fetch effect on re-renders.
   const loadCommandRef = useRef(onLoadSessionCommand);
@@ -108,6 +116,7 @@ export function ProviderMenuDrawer({
 
   const options = manifest?.providerMenus?.options ?? [];
   const inspectActions = manifest?.providerMenus?.inspectActions ?? [];
+  const modelSyncOptionId = manifest?.modelSync?.optionId;
 
   const activeOptionChips = useMemo(() => {
     if (!commandInfo) return [];
@@ -154,6 +163,22 @@ export function ProviderMenuDrawer({
       );
     } finally {
       setRunningActionId(null);
+    }
+  }
+
+  async function handleSyncModels() {
+    if (!manifest || !onRefreshModels) return;
+    setSyncingModels(true);
+    setSyncError(null);
+    try {
+      const res = await onRefreshModels(manifest.agentId, session.machineName);
+      setSyncedChoices((cur) => ({ ...cur, [res.optionId]: res.models }));
+    } catch (err) {
+      setSyncError(
+        err instanceof Error ? err.message : 'Impossible de synchroniser les modèles du CLI',
+      );
+    } finally {
+      setSyncingModels(false);
     }
   }
 
@@ -245,6 +270,12 @@ export function ProviderMenuDrawer({
                 </div>
               )}
 
+              {syncError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+                  {syncError}
+                </div>
+              )}
+
               {options.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-zinc-200 p-6 text-center text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
                   Aucun paramètre fournisseur configurable pour cet agent.
@@ -253,6 +284,10 @@ export function ProviderMenuDrawer({
                 options.map((opt) => {
                   const activeValue = session.options?.[opt.id] ?? opt.defaultValue ?? '';
                   const isSaving = savingOptionId === opt.id;
+                  const choices = syncedChoices[opt.id] ?? opt.choices;
+                  const canSyncModels = Boolean(
+                    onRefreshModels && modelSyncOptionId === opt.id,
+                  );
                   return (
                     <div
                       key={opt.id}
@@ -269,13 +304,29 @@ export function ProviderMenuDrawer({
                             </p>
                           )}
                         </div>
-                        <span className="shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                          {opt.flag}
-                        </span>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          {canSyncModels && (
+                            <button
+                              type="button"
+                              onClick={() => void handleSyncModels()}
+                              disabled={syncingModels}
+                              aria-label={`Synchroniser les modèles depuis ${manifest?.name ?? 'le CLI'}`}
+                              title="Synchroniser les modèles depuis le CLI installé sur la machine"
+                              className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-400 transition hover:bg-zinc-200/60 hover:text-zinc-700 disabled:opacity-50 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                            >
+                              <RefreshCw
+                                className={`h-3.5 w-3.5 ${syncingModels ? 'animate-spin' : ''}`}
+                              />
+                            </button>
+                          )}
+                          <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                            {opt.flag}
+                          </span>
+                        </div>
                       </div>
 
                       <div className="mt-3 flex flex-wrap gap-1.5">
-                        {opt.choices.map((choice) => {
+                        {choices.map((choice) => {
                           const selected = activeValue === choice.value;
                           return (
                             <button

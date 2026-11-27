@@ -6,6 +6,7 @@ import type {
   AgentManifest,
   ChatMessage,
   MenuActionResult,
+  ModelsRefreshResult,
   SessionMeta,
 } from '../api/types';
 
@@ -53,6 +54,8 @@ const mockSendChatMessage = vi.fn();
 const mockCancelChatTurn = vi.fn();
 const mockUpdateSessionOptions = vi.fn();
 const mockRunProviderMenuAction = vi.fn();
+const mockRefreshAgentModels = vi.fn();
+const mockRefreshAgents = vi.fn();
 const mockFetchSessionCommand = vi.fn();
 const mockCloseSession = vi.fn();
 const mockCreateSession = vi.fn();
@@ -70,6 +73,13 @@ const copilotManifest: AgentManifest = {
     { name: '/explain', description: 'Expliquer un fichier ou symbole', args: '<cible>' },
     { name: '/review', description: 'Relire le diff courant' },
   ],
+  modelSync: {
+    optionId: 'model',
+    args: ['--help'],
+    parser: 'help-flag',
+    flag: '--model',
+    timeoutSec: 15,
+  },
   providerMenus: {
     options: [
       {
@@ -103,6 +113,7 @@ const mockClient = {
   cancelChatTurn: mockCancelChatTurn,
   updateSessionOptions: mockUpdateSessionOptions,
   runProviderMenuAction: mockRunProviderMenuAction,
+  refreshAgentModels: mockRefreshAgentModels,
   fetchSessionCommand: mockFetchSessionCommand,
   closeSession: mockCloseSession,
   createSession: mockCreateSession,
@@ -115,6 +126,7 @@ vi.mock('../context/AppContext', () => ({
     client: mockClient,
     agents: mockAgents,
     refreshSessions: mockRefreshSessions,
+    refreshAgents: mockRefreshAgents,
   }),
 }));
 
@@ -289,6 +301,51 @@ describe('ChatView', () => {
     });
     expect(await screen.findByText('copilot 1.4.2')).toBeInTheDocument();
     expect(screen.getByText('exit 0')).toBeInTheDocument();
+  });
+
+  it('synchronizes model choices from the CLI via the refresh button', async () => {
+    const session = makeRunningSession();
+
+    const refreshRes: ModelsRefreshResult = {
+      agentId: 'copilot',
+      optionId: 'model',
+      parser: 'help-flag',
+      mode: 'exec',
+      exitCode: 0,
+      count: 2,
+      models: [
+        { value: 'default', label: 'Default' },
+        { value: 'gpt-6.1-sol', label: 'gpt-6.1-sol' },
+        { value: 'claude-sonnet-5.5', label: 'claude-sonnet-5.5' },
+      ],
+      refreshedAt: '2026-11-27T00:00:00Z',
+    };
+    mockRefreshAgentModels.mockResolvedValue(refreshRes);
+    mockRefreshAgents.mockResolvedValue(undefined);
+
+    render(
+      <ChatView
+        session={session}
+        onBack={vi.fn()}
+        onSessionClosed={vi.fn()}
+        webSocketFactory={MockWebSocket}
+      />,
+    );
+
+    await screen.findByText('Comment puis-je vous aider ?');
+    fireEvent.click(screen.getByRole('button', { name: /Menus/i }));
+    expect(screen.getByRole('dialog', { name: 'Menus du fournisseur' })).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Synchroniser les modèles depuis/i }),
+    );
+
+    await waitFor(() => {
+      expect(mockRefreshAgentModels).toHaveBeenCalledWith('copilot', 'homelab-01');
+    });
+    expect(await screen.findByRole('button', { name: 'gpt-6.1-sol' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'claude-sonnet-5.5' })).toBeInTheDocument();
+    expect(mockRefreshAgents).toHaveBeenCalled();
   });
 
   it('shows the headless command in the Debug tab for debugging', async () => {

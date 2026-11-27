@@ -10,6 +10,7 @@ import type {
   FSListing,
   Machine,
   MenuActionResult,
+  ModelsRefreshResult,
   NotificationConfig,
   Project,
   SessionCommandInfo,
@@ -133,6 +134,16 @@ export class AgentPilotClient {
 
   fetchAgentCommands(agentId: string): Promise<CommandSpec[]> {
     return this.request<CommandSpec[]>(`/api/agents/${encodeURIComponent(agentId)}/commands`);
+  }
+
+  refreshAgentModels(agentId: string, machine?: string): Promise<ModelsRefreshResult> {
+    const params = new URLSearchParams();
+    if (machine) params.set('machine', machine);
+    const qs = params.toString();
+    return this.request<ModelsRefreshResult>(
+      `/api/agents/${encodeURIComponent(agentId)}/models/refresh${qs ? `?${qs}` : ''}`,
+      { method: 'POST' },
+    );
   }
 
   fetchSessions(query?: SessionQueryParams): Promise<SessionMeta[]> {

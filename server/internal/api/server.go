@@ -102,6 +102,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux, authn *auth.Authenticator) {
 	mux.Handle("POST /api/projects/{id}/exec", mobileOnly(http.HandlerFunc(s.handleExecProject)))
 	mux.Handle("GET /api/agents", mobileOnly(http.HandlerFunc(s.handleListAgents)))
 	mux.Handle("GET /api/agents/{id}/commands", mobileOnly(http.HandlerFunc(s.handleGetAgentCommands)))
+	mux.Handle("POST /api/agents/{id}/models/refresh", mobileOnly(http.HandlerFunc(s.handleRefreshAgentModels)))
 	mux.Handle("GET /api/config/notifications", mobileOnly(http.HandlerFunc(s.handleGetNotificationConfig)))
 	mux.Handle("POST /api/sessions", mobileOnly(http.HandlerFunc(s.handleCreateSession)))
 	mux.Handle("GET /api/sessions", mobileOnly(http.HandlerFunc(s.handleListSessions)))

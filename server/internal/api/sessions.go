@@ -765,14 +765,24 @@ func buildChatTurnArgs(manifest manifests.Manifest, cwd, prompt string, turnInde
 	if manifest.ChatMode == manifests.ChatModeShell {
 		return nil
 	}
-	args := make([]string, 0, len(manifest.HeadlessArgs)+len(manifest.ContinueArgs)+4)
-	for _, tmpl := range manifest.HeadlessArgs {
+	substitute := func(tmpl string) string {
 		arg := strings.ReplaceAll(tmpl, "{cwd}", cwd)
-		arg = strings.ReplaceAll(arg, "{prompt}", prompt)
-		args = append(args, arg)
+		return strings.ReplaceAll(arg, "{prompt}", prompt)
 	}
-	if turnIndex > 0 && len(manifest.ContinueArgs) > 0 {
-		args = append(args, manifest.ContinueArgs...)
+	args := make([]string, 0, len(manifest.HeadlessArgs)+len(manifest.ContinueArgs)+4)
+	if turnIndex > 0 && len(manifest.ContinueHeadlessArgs) > 0 {
+		// Full replacement template for continuation turns (e.g.
+		// `codex exec resume --last "{prompt}"`).
+		for _, tmpl := range manifest.ContinueHeadlessArgs {
+			args = append(args, substitute(tmpl))
+		}
+	} else {
+		for _, tmpl := range manifest.HeadlessArgs {
+			args = append(args, substitute(tmpl))
+		}
+		if turnIndex > 0 && len(manifest.ContinueArgs) > 0 {
+			args = append(args, manifest.ContinueArgs...)
+		}
 	}
 	if manifest.ProviderMenus != nil {
 		for _, opt := range manifest.ProviderMenus.Options {
